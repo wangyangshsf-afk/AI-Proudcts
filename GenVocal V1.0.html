@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenVocal 实时可视化检测系统 v1.0</title>
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;}
+    
+    body {
+      font-family:'SF Pro Display', 'Segoe UI', Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow-x:hidden;
+      padding:20px 0;
+    }
+
+    .particles {
+      position:fixed;
+      top:0;left:0;width:100%;height:100%;
+      pointer-events:none;
+      z-index:0;
+    }
+    .particle {
+      position:absolute;
+      width:4px;height:4px;
+      background:rgba(255,255,255,0.6);
+      border-radius:50%;
+      animation: float 8s infinite;
+    }
+    @keyframes float {
+      0%, 100% {transform: translateY(0) rotate(0deg);}
+      50% {transform: translateY(-100px) rotate(360deg);}
+    }
+
+    .container {
+      position:relative;
+      z-index:1;
+      width:1300px;
+      max-width:95%;
+      background:rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius:30px;
+      padding:40px;
+      box-shadow:0 30px 100px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+      text-align:center;
+      font-size:36px;
+      font-weight:900;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom:10px;
+    }
+    
+    .subtitle {
+      text-align:center;
+      font-size:14px;
+      color:#718096;
+      margin-bottom:30px;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .video-section, .audio-section {
+      display:flex;
+      flex-direction:column;
+      gap:15px;
+    }
+
+    .video-box {
+      position:relative;
+      width:100%;
+      height:400px;
+      background:#000;
+      border-radius:15px;
+      overflow:hidden;
+      box-shadow:0 15px 40px rgba(0,0,0,0.3);
+      border:3px solid transparent;
+      transition: border 0.3s, box-shadow 0.3s;
+    }
+    .video-box.success {border-color:#00ff88;box-shadow:0 0 30px rgba(0,255,136,0.5);}
+    .video-box.error {border-color:#ff6b6b;box-shadow:0 0 30px rgba(255,107,107,0.5);}
+
+    #video {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    #cameraBox {
+      position:relative;
+    }
+
+    #cameraVideo {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:15px;
+    }
+
+    #p5Canvas {
+      width:100%;
+      height:100%;
+    }
+    #p5Canvas canvas {
+      width:100% !important;
+      height:100% !important;
+      display:block;
+      /* 提高清晰度设置 - 使用平滑渲染 */
+      image-rendering: auto;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: smooth;
+      -ms-interpolation-mode: bicubic;
+      /* 确保canvas清晰渲染和硬件加速 */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      will-change: transform;
+    }
+
+    .pose-badge {
+      position:absolute;
+      top:15px;
+      left:15px;
+      right:15px;
+      padding:12px 20px;
+      border-radius:10px;
+      background:rgba(0,0,0,0.6);
+      color:#fff;
+      font-size:16px;
+      font-weight:bold;
+      text-align:center;
+      border:2px solid rgba(255,255,255,0.2);
+      transition:all 0.3s;
+      z-index:10;
+    }
+    .pose-badge.active {background:rgba(0,255,136,0.4);border-color:#00ff88;}
+    .pose-badge.wrong {background:rgba(255,107,107,0.4);border-color:#ff6b6b;}
+
+    .shoulder-info {
+      position:absolute;
+      bottom:15px;
+      left:15px;
+      right:15px;
+      background:rgba(0,0,0,0.7);
+      border-radius:10px;
+      padding:12px;
+      color:#fff;
+      font-size:12px;
+      z-index:10;
+    }
+    .shoulder-bar {
+      height:8px;
+      background:rgba(255,255,255,0.2);
+      border-radius:4px;
+      margin-top:8px;
+      position:relative;
+      overflow:hidden;
+    }
+    .shoulder-fill {
+      height:100%;
+      background:linear-gradient(90deg, #00ff88, #00d4ff);
+      width:50%;
+      transition:width 0.2s;
+      border-radius:4px;
+    }
+    .baseline-marker {
+      position:absolute;
+      top:0;
+      left:50%;
+      width:3px;
+      height:100%;
+      background:#ffd700;
+      transform:translateX(-50%);
+    }
+
+    .audio-box {
+      width:100%;
+      background:linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      border-radius:15px;
+      overflow:hidden;
+      box-shadow:0 15px 40px rgba(0,0,0,0.3);
+      border:3px solid transparent;
+      transition: border 0.3s, box-shadow 0.3s;
+      padding:20px;
+    }
+    .audio-box.success {border-color:#00ff88;box-shadow:0 0 30px rgba(0,255,136,0.5);}
+    .audio-box.error {border-color:#ff6b6b;box-shadow:0 0 30px rgba(255,107,107,0.5);}
+
+    .audio-badge {
+      padding:12px 20px;
+      border-radius:10px;
+      background:rgba(0,0,0,0.5);
+      color:#fff;
+      font-size:16px;
+      font-weight:bold;
+      text-align:center;
+      border:2px solid rgba(255,255,255,0.2);
+      margin-bottom:15px;
+      transition:all 0.3s;
+    }
+    .audio-badge.active {background:rgba(0,255,136,0.4);border-color:#00ff88;}
+    .audio-badge.wrong {background:rgba(255,107,107,0.4);border-color:#ff6b6b;}
+
+    .waveform-container {
+      width:100%;
+      height:100px;
+      background:rgba(0,0,0,0.3);
+      border-radius:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    #waveCanvas {width:100%;height:100%;}
+    .audio-level {
+      position:absolute;
+      top:8px;
+      right:10px;
+      background:rgba(0,0,0,0.5);
+      padding:5px 10px;
+      border-radius:6px;
+      font-size:12px;
+      color:#00ff88;
+      font-weight:700;
+    }
+
+    .bar-chart-panel {
+      background:rgba(0,0,0,0.4);
+      border-radius:10px;
+      padding:15px;
+      margin-top:15px;
+    }
+    .bar-chart-title {
+      font-size:14px;
+      color:rgba(255,255,255,0.9);
+      margin-bottom:15px;
+      font-weight:700;
+      text-align:center;
+    }
+    .bar-chart-container {
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .bar-chart-item {
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .bar-chart-label {
+      width:60px;
+      font-size:13px;
+      font-weight:700;
+      color:#fff;
+      text-align:left;
+    }
+    .bar-chart-label.correct {color:#00ff88;}
+    .bar-chart-label.wrong {color:#ff6b6b;}
+    .bar-chart-bar-wrapper {
+      flex:1;
+      height:35px;
+      background:rgba(255,255,255,0.1);
+      border-radius:8px;
+      overflow:hidden;
+      position:relative;
+      box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .bar-chart-bar {
+      height:100%;
+      border-radius:8px;
+      transition:width 0.2s ease-out;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      padding-right:10px;
+      min-width:50px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+    }
+    .bar-chart-bar.correct {
+      background:linear-gradient(90deg, #00ff88 0%, #00d4ff 100%);
+      animation:pulse-correct 1.5s ease-in-out infinite;
+    }
+    .bar-chart-bar.wrong {
+      background:linear-gradient(90deg, #ff6b6b 0%, #ee5a6f 100%);
+      animation:pulse-wrong 1.5s ease-in-out infinite;
+    }
+    .bar-chart-value {
+      font-size:13px;
+      font-weight:900;
+      color:#fff;
+      text-shadow:0 1px 3px rgba(0,0,0,0.5);
+    }
+    @keyframes pulse-correct {
+      0%, 100% {box-shadow:0 2px 8px rgba(0,255,136,0.4);}
+      50% {box-shadow:0 2px 15px rgba(0,255,136,0.8);}
+    }
+    @keyframes pulse-wrong {
+      0%, 100% {box-shadow:0 2px 8px rgba(255,107,107,0.4);}
+      50% {box-shadow:0 2px 15px rgba(255,107,107,0.8);}
+    }
+
+    .panel {
+      grid-column: 1 / -1;
+      display:flex;
+      flex-direction:column;
+      gap:15px;
+    }
+
+    .mega-status {
+      background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding:20px;
+      border-radius:15px;
+      text-align:center;
+      box-shadow:0 10px 30px rgba(102,126,234,0.4);
+    }
+    
+    .mega-status-text {
+      font-size:20px;
+      font-weight:900;
+      color:#fff;
+    }
+
+    .control-card {
+      background:#f7fafc;
+      padding:15px;
+      border-radius:12px;
+      border:2px solid #e2e8f0;
+    }
+    .control-card-title {
+      font-size:13px;
+      font-weight:700;
+      color:#2d3748;
+      margin-bottom:10px;
+    }
+    .control-row {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .control-row:last-child {margin-bottom:0;}
+    .control-slider {
+      flex:1;
+      height:6px;
+      -webkit-appearance:none;
+      background:#e2e8f0;
+      border-radius:3px;
+      outline:none;
+    }
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance:none;
+      width:14px;height:14px;
+      background:#667eea;
+      border-radius:50%;
+      cursor:pointer;
+    }
+    .control-value {
+      font-size:12px;
+      font-weight:700;
+      color:#667eea;
+      width:50px;
+      text-align:right;
+    }
+
+    .upload-section {
+      background:#f7fafc;
+      border-radius:12px;
+      padding:15px;
+      border:2px solid #e2e8f0;
+    }
+    
+    .section-title {
+      font-size:14px;
+      font-weight:700;
+      color:#2d3748;
+      margin-bottom:10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .section-title::before {
+      content:'';
+      width:4px;height:18px;
+      background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius:2px;
+    }
+
+    .dual-upload {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .upload-card {
+      background:#fff;
+      border:2px dashed #cbd5e0;
+      border-radius:10px;
+      padding:12px;
+      transition:all 0.3s;
+    }
+    .upload-card:hover {border-color:#667eea;}
+    .upload-card.has-samples {
+      border-color:#00ff88;
+      border-style:solid;
+      background:rgba(0,255,136,0.05);
+    }
+
+    .card-label {
+      font-size:12px;
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .card-label.correct {color:#059669;}
+    .card-label.wrong {color:#dc2626;}
+
+    .file-input-wrapper {position:relative;}
+    .file-input-wrapper input[type=file] {
+      position:absolute;
+      opacity:0;
+      width:100%;
+      height:100%;
+      cursor:pointer;
+      z-index:10;
+    }
+    .file-input-label {
+      display:block;
+      padding:8px 10px;
+      background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color:#fff;
+      text-align:center;
+      border-radius:6px;
+      font-weight:700;
+      font-size:12px;
+    }
+
+    .sample-count {
+      font-size:11px;
+      color:#718096;
+      margin-top:6px;
+    }
+
+    .btn-row {
+      display:flex;
+      gap:15px;
+    }
+    .btn {
+      flex:1;
+      padding:14px;
+      font-size:16px;
+      font-weight:900;
+      border:none;
+      border-radius:12px;
+      cursor:pointer;
+      transition:all 0.3s;
+      text-transform:uppercase;
+    }
+    .btn-start {
+      background:linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+      color:#fff;
+    }
+    .btn-start:disabled {
+      background:#cbd5e0;
+      cursor:not-allowed;
+      opacity:0.6;
+    }
+    .btn-stop {
+      background:linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      color:#fff;
+      display:none;
+    }
+    .btn-reset {
+      background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color:#fff;
+      flex:0.5;
+    }
+
+    .log-panel {
+      background:#1a202c;
+      color:#00ff88;
+      border-radius:10px;
+      padding:12px;
+      height:80px;
+      overflow-y:auto;
+      font-family:'Courier New', monospace;
+      font-size:11px;
+      line-height:1.4;
+    }
+    .log-panel::-webkit-scrollbar {width:5px;}
+    .log-panel::-webkit-scrollbar-thumb {background:#667eea; border-radius:3px;}
+    .log-error {color:#ff6b6b;}
+    .log-success {color:#00ff88;}
+    .log-warning {color:#f59e0b;}
+
+    .loading-overlay {
+      position:absolute;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.8);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-size:14px;
+      border-radius:15px;
+      z-index:20;
+      gap:10px;
+    }
+    .loading-overlay.hidden {display:none;}
+    .spinner {
+      width:40px;height:40px;
+      border:4px solid rgba(255,255,255,0.3);
+      border-top-color:#00ff88;
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin {to{transform:rotate(360deg);}}
+
+    @media (max-width: 900px) {
+      .main-layout {grid-template-columns: 1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+
+  <div class="container">
+    <h1>🫁 GenVocal 实时可视化检测系统 v1.0</h1>
+    <div class="subtitle" style="line-height:1.6;">
+      <div>GenVocal Real-time Visualization & Detection System v1.0</div>
+      <div style="margin-top:4px;">RT样本·GenMFCC特征提取·OpenProcessing可视化</div>
+    </div>
+    
+    <div class="main-layout">
+      <!-- OpenProcessing可视化区域 -->
+      <div class="video-section">
+        <!-- 实时摄像头区域 -->
+        <div class="video-box" id="cameraBox" style="height:200px;margin-bottom:15px;">
+          <video id="cameraVideo" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+          <div style="position:absolute;top:15px;left:50%;transform:translateX(-50%);text-align:center;background:linear-gradient(135deg, rgba(0,255,136,0.9), rgba(0,212,255,0.9));color:#fff;padding:12px 24px;border-radius:25px;font-size:20px;font-weight:bold;z-index:10;box-shadow:0 4px 15px rgba(0,255,136,0.4);white-space:nowrap;">
+            💨 吸气唱"HU"
+          </div>
+        </div>
+        <!-- p5.js可视化区域 -->
+        <div class="video-box" id="visualizationBox">
+          <div id="p5Canvas"></div>
+        </div>
+      </div>
+
+      <!-- 音频区域 -->
+      <div class="audio-section">
+        <div class="audio-box" id="audioBox">
+          <div class="audio-badge" id="audioIndicator">🎤 发声检测 (Vocal Detection)</div>
+          <div class="waveform-container">
+            <canvas id="waveCanvas"></canvas>
+            <div class="audio-level" id="audioLevel">实时发声量化 (Real-time Vocal Quantization): 0%</div>
+            <div class="audio-level" id="micStatus" style="position:absolute;top:8px;left:10px;background:rgba(255,107,107,0.7);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;">🎤 等待音频输入... (Waiting for audio input...)</div>
+          </div>
+          
+          <!-- 横向动态柱状图 -->
+          <div class="bar-chart-panel">
+            <div class="bar-chart-title">📊 音频反馈 (Audio Feedback)</div>
+            <div class="bar-chart-container">
+              <div class="bar-chart-item">
+                <div class="bar-chart-label correct">✅ 吸开 (Correct)</div>
+                <div class="bar-chart-bar-wrapper">
+                  <div class="bar-chart-bar correct" id="barCorrectFill" style="width:0%">
+                    <span class="bar-chart-value" id="barCorrectVal">0%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bar-chart-item">
+                <div class="bar-chart-label wrong">❌ 未吸开 (Incorrect)</div>
+                <div class="bar-chart-bar-wrapper">
+                  <div class="bar-chart-bar wrong" id="barWrongFill" style="width:0%">
+                    <span class="bar-chart-value" id="barWrongVal">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <div class="section-title">📁 音频样本 (Audio Samples)</div>
+          <div class="dual-upload">
+            <div class="upload-card" id="audioCorrectCard">
+              <div class="card-label correct">✅ 吸开样本 (Correct Samples)</div>
+              <div class="file-input-wrapper">
+                <input type="file" id="audioCorrectFile" accept="audio/*" multiple>
+                <label class="file-input-label">+ 添加 (Add)</label>
+              </div>
+              <div class="sample-count" id="correctCount">0 个样本 (0 samples)</div>
+            </div>
+            <div class="upload-card" id="audioWrongCard">
+              <div class="card-label wrong">❌ 未吸开样本 (Incorrect Samples)</div>
+              <div class="file-input-wrapper">
+                <input type="file" id="audioWrongFile" accept="audio/*" multiple>
+                <label class="file-input-label">+ 添加 (Add)</label>
+              </div>
+              <div class="sample-count" id="wrongCount">0 个样本 (0 samples)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 控制面板 -->
+      <div class="panel">
+        <div class="mega-status">
+          <div class="mega-status-text" id="statusText">等待上传样本后开始检测... (Waiting for samples upload...)</div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-start" id="startBtn" disabled>🚀 开始检测 (Start Detection)</button>
+          <button class="btn btn-stop" id="stopBtn">⏹ 停止 (Stop)</button>
+        </div>
+
+        <div class="log-panel" id="log"><span class="log-success">✅ 系统就绪，请上传音频样本... (System ready, please upload audio samples...)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- p5.js库 -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.7/lib/p5.js"></script>
+
+  <script>
+    // ================= 配置 =================
+    const CONFIG = {
+      fftSize: 2048,
+      audioThreshold: 0.55,
+      noiseGate: 0.08  // 大幅降低噪音门限，提高远距离收音能力
+    };
+
+    // ================= 全局变量 =================
+    let audioSamplesCorrect = [];
+    let audioSamplesWrong = [];
+    let audioTemplateCorrect = null;
+    let audioTemplateWrong = null;
+
+    let isRunning = false;
+    let audioCtx, analyser, micSource, gainNode, compressor;
+    let mediaStream = null;
+    let animationId;
+
+    let currentGain = 5.0;  // 大幅增加增益，增强远距离麦克风收音能力
+    let currentThreshold = 0.55;
+
+    // ================= 初始化粒子效果 =================
+    (function() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 25; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 8 + 's';
+        container.appendChild(p);
+      }
+    })();
+
+    // ================= 控制滑块（已删除） =================
+
+    // ================= 日志 =================
+    function log(msg, type = 'info') {
+      const el = document.getElementById('log');
+      const icons = {success:'✅', error:'❌', warning:'⚠️', info:'▶️'};
+      const cls = {success:'log-success', error:'log-error', warning:'log-warning', info:''};
+      const time = new Date().toLocaleTimeString('zh-CN');
+      el.innerHTML += `<div class="${cls[type]}">${icons[type]} [${time}] ${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ================= 辅助函数 =================
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setLoadingText(text) {
+      document.getElementById('loadingText').textContent = text;
+    }
+
+    // ================= MFCC特征提取 =================
+    function hzToMel(hz) {
+      return 2595 * Math.log10(1 + hz / 700);
+    }
+
+    function melToHz(mel) {
+      return 700 * (Math.pow(10, mel / 2595) - 1);
+    }
+
+    function createMelFilterbank(numFilters, fftSize, sampleRate) {
+      const melMin = hzToMel(0);
+      const melMax = hzToMel(sampleRate / 2);
+      const melPoints = [];
+
+      for (let i = 0; i < numFilters + 2; i++) {
+        melPoints.push(melMin + (melMax - melMin) * i / (numFilters + 1));
+      }
+
+      const hzPoints = melPoints.map(melToHz);
+      const binPoints = hzPoints.map(hz => Math.floor((fftSize / 2 + 1) * hz / (sampleRate / 2)));
+
+      const filterbank = [];
+      for (let m = 1; m < numFilters + 1; m++) {
+        const filter = new Array(fftSize / 2 + 1).fill(0);
+        for (let k = binPoints[m - 1]; k < binPoints[m]; k++) {
+          filter[k] = (k - binPoints[m - 1]) / (binPoints[m] - binPoints[m - 1]);
+        }
+        for (let k = binPoints[m]; k < binPoints[m + 1]; k++) {
+          filter[k] = (binPoints[m + 1] - k) / (binPoints[m + 1] - binPoints[m]);
+        }
+        filterbank.push(filter);
+      }
+      return filterbank;
+    }
+
+    function applyHammingWindow(data) {
+      const windowed = new Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        const windowValue = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (data.length - 1));
+        windowed[i] = data[i] * windowValue;
+      }
+      return windowed;
+    }
+
+    function computeFFT(data) {
+      const N = data.length;
+      // 只计算前一半频率，减少计算量
+      const outputSize = Math.floor(N / 2) + 1;
+      const fft = new Array(outputSize);
+      
+      // 预计算角度增量，避免重复计算
+      const angleStep = -2 * Math.PI / N;
+      
+      for (let k = 0; k < outputSize; k++) {
+        let real = 0, imag = 0;
+        const kAngleStep = k * angleStep;
+        
+        // 使用查表优化，减少三角函数计算
+        for (let n = 0; n < N; n++) {
+          const angle = kAngleStep * n;
+          real += data[n] * Math.cos(angle);
+          imag += data[n] * Math.sin(angle);
+        }
+        fft[k] = Math.sqrt(real * real + imag * imag);
+      }
+      return fft;
+    }
+
+    function computeMFCC(frame, sampleRate, numFilters = 20, numCoeffs = 10) {
+      // 减少滤波器数量和系数数量以提高速度
+      const preEmphasized = new Array(frame.length);
+      preEmphasized[0] = frame[0];
+      for (let i = 1; i < frame.length; i++) {
+        preEmphasized[i] = frame[i] - 0.97 * frame[i - 1];
+      }
+
+      const windowed = applyHammingWindow(preEmphasized);
+      const fftResult = computeFFT(windowed);
+      const powerSpectrum = fftResult.map(x => x * x);
+
+      const filterbank = createMelFilterbank(numFilters, frame.length, sampleRate);
+      const melEnergies = filterbank.map(filter => {
+        let energy = 0;
+        const minLen = Math.min(filter.length, powerSpectrum.length);
+        for (let i = 0; i < minLen; i++) {
+          energy += filter[i] * powerSpectrum[i];
+        }
+        return Math.log(Math.max(energy, 1e-10));
+      });
+
+      const mfcc = new Array(numCoeffs);
+      const piOverFilters = Math.PI / numFilters;
+      for (let n = 0; n < numCoeffs; n++) {
+        let sum = 0;
+        const nPiOverFilters = n * piOverFilters;
+        for (let k = 0; k < numFilters; k++) {
+          sum += melEnergies[k] * Math.cos(nPiOverFilters * (k + 0.5));
+        }
+        mfcc[n] = sum;
+      }
+
+      return mfcc;
+    }
+
+    // ================= 音频处理 =================
+    async function extractAudioFingerprint(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextClass();
+
+      try {
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        const rawData = audioBuffer.getChannelData(0);
+        const sampleRate = audioBuffer.sampleRate;
+
+        // 限制处理长度，只处理前10秒，避免过长音频导致卡顿
+        const maxDuration = 10; // 秒
+        const maxSamples = Math.min(rawData.length, sampleRate * maxDuration);
+        const processedData = rawData.slice(0, maxSamples);
+
+        // 分帧参数 - 增大帧移以减少计算量
+        const frameLength = Math.floor(sampleRate * 0.025); // 25ms帧长
+        const frameStep = Math.floor(sampleRate * 0.02);    // 20ms帧移（从10ms增加到20ms，减少一半计算量）
+        const mfccFeatures = [];
+
+        // 使用分片处理，避免阻塞UI
+        const totalFrames = Math.floor((processedData.length - frameLength) / frameStep);
+        const batchSize = 50; // 每批处理50帧
+        
+        for (let batchStart = 0; batchStart < totalFrames; batchStart += batchSize) {
+          // 使用setTimeout让出控制权，避免阻塞UI
+          await new Promise(resolve => setTimeout(resolve, 0));
+          
+          const batchEnd = Math.min(batchStart + batchSize, totalFrames);
+          for (let i = batchStart; i < batchEnd; i++) {
+            const start = i * frameStep;
+            if (start + frameLength <= processedData.length) {
+              const frame = processedData.slice(start, start + frameLength);
+              const mfcc = computeMFCC(frame, sampleRate);
+              mfccFeatures.push(mfcc);
+            }
+          }
+        }
+
+        // 计算每个MFCC系数的平均值作为特征向量
+        if (mfccFeatures.length === 0) {
+          throw new Error('无法提取音频特征');
+        }
+
+        const numCoeffs = mfccFeatures[0].length;
+        const featureVector = new Array(numCoeffs).fill(0);
+        mfccFeatures.forEach(frameMFCC => {
+          frameMFCC.forEach((coeff, idx) => {
+            featureVector[idx] += coeff;
+          });
+        });
+        featureVector.forEach((val, idx) => {
+          featureVector[idx] = val / mfccFeatures.length;
+        });
+
+        // 改进的归一化方式：使用L2范数归一化，保留特征差异
+        let norm = 0;
+        featureVector.forEach(v => {
+          norm += v * v;
+        });
+        norm = Math.sqrt(norm);
+        
+        // 如果范数太小，使用最大绝对值归一化作为备选
+        const normalizedFeatures = norm > 1e-10 
+          ? featureVector.map(v => v / norm)
+          : (() => {
+              const maxVal = Math.max(...featureVector.map(Math.abs));
+              return maxVal > 1e-10 ? featureVector.map(v => v / maxVal) : featureVector;
+            })();
+
+        return normalizedFeatures;
+
+      } finally {
+        await ctx.close();
+      }
+    }
+
+    // ================= 传递实时音频频谱数据到OpenProcessing =================
+    let currentAudioSpectrum = null;
+    let currentCorrectPercent = 0;
+    let currentWrongPercent = 0;
+    function sendAudioSpectrumToVisualization(freqData, correctPercent = 0, wrongPercent = 0) {
+      // 将Uint8Array转换为普通数组并归一化
+      currentAudioSpectrum = Array.from(freqData).map(v => v / 255);
+      // 存储正确和错误的百分比
+      currentCorrectPercent = correctPercent;
+      currentWrongPercent = wrongPercent;
+      // 数据已存储，p5.js sketch会自动读取
+    }
+
+    function mergeAudioSamples(samples) {
+      if (!samples.length) return null;
+      if (samples.length === 1) return samples[0];
+      
+      const len = samples[0].length;
+      const merged = new Array(len).fill(0);
+      samples.forEach(s => {
+        for (let i = 0; i < len; i++) merged[i] += s[i];
+      });
+      const averaged = merged.map(v => v / samples.length);
+      
+      // 重新归一化合并后的模板，确保特征差异保留
+      let norm = 0;
+      averaged.forEach(v => {
+        norm += v * v;
+      });
+      norm = Math.sqrt(norm);
+      
+      return norm > 1e-10 
+        ? averaged.map(v => v / norm)
+        : (() => {
+            const maxVal = Math.max(...averaged.map(Math.abs));
+            return maxVal > 1e-10 ? averaged.map(v => v / maxVal) : averaged;
+          })();
+    }
+
+    // 改进的相似度计算：结合余弦相似度和欧氏距离
+    function cosineSimilarity(a, b) {
+      if (!a || !b || a.length === 0 || b.length === 0) return 0;
+      const len = Math.min(a.length, b.length);
+      let dot = 0, magA = 0, magB = 0;
+      for (let i = 0; i < len; i++) {
+        dot += a[i] * b[i];
+        magA += a[i] ** 2;
+        magB += b[i] ** 2;
+      }
+      return (magA && magB) ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+    }
+    
+    // 计算欧氏距离（归一化到0-1范围）
+    function euclideanDistance(a, b) {
+      if (!a || !b || a.length === 0 || b.length === 0) return 1;
+      const len = Math.min(a.length, b.length);
+      let sumSqDiff = 0;
+      for (let i = 0; i < len; i++) {
+        const diff = a[i] - b[i];
+        sumSqDiff += diff * diff;
+      }
+      const distance = Math.sqrt(sumSqDiff);
+      // 归一化：假设最大距离为2（两个单位向量的最大距离）
+      return Math.min(1, distance / 2);
+    }
+    
+    // 综合相似度：结合余弦相似度和欧氏距离
+    function combinedSimilarity(a, b) {
+      const cosineSim = cosineSimilarity(a, b);
+      const euclideanDist = euclideanDistance(a, b);
+      // 余弦相似度越高越好，欧氏距离越低越好
+      // 优化权重：增加余弦相似度权重，提高判别准确性
+      const combinedScore = cosineSim * 0.8 + (1 - euclideanDist) * 0.2;
+      return Math.max(0, Math.min(1, combinedScore));
+    }
+
+    // ================= 文件上传 =================
+    document.getElementById('audioCorrectFile').onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      
+      log(`处理 ${files.length} 个吸开样本...`, 'info');
+      
+      // 禁用文件输入，防止重复上传
+      const fileInput = e.target;
+      fileInput.disabled = true;
+      
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          try {
+            log(`正在处理 ${i + 1}/${files.length}: ${file.name}...`, 'info');
+            const spectrum = await extractAudioFingerprint(file);
+            audioSamplesCorrect.push(spectrum);
+            log(`✓ ${file.name}`, 'success');
+            
+            // 更新进度
+            document.getElementById('correctCount').textContent = `${audioSamplesCorrect.length} 个样本 (${audioSamplesCorrect.length} samples) (处理中 Processing ${i + 1}/${files.length})`;
+            
+            // 让出控制权，保持UI响应
+            await new Promise(resolve => setTimeout(resolve, 10));
+          } catch (err) {
+            log(`✗ ${file.name}: ${err.message}`, 'error');
+          }
+        }
+        
+        audioTemplateCorrect = mergeAudioSamples(audioSamplesCorrect);
+        document.getElementById('correctCount').textContent = audioSamplesCorrect.length + ' 个样本 (' + audioSamplesCorrect.length + ' samples)';
+        document.getElementById('audioCorrectCard').classList.toggle('has-samples', audioSamplesCorrect.length > 0);
+        checkReady();
+      } finally {
+        fileInput.disabled = false;
+        e.target.value = '';
+      }
+    };
+
+    document.getElementById('audioWrongFile').onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      
+      log(`处理 ${files.length} 个未吸开样本...`, 'info');
+      
+      // 禁用文件输入，防止重复上传
+      const fileInput = e.target;
+      fileInput.disabled = true;
+      
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          try {
+            log(`正在处理 ${i + 1}/${files.length}: ${file.name}...`, 'info');
+            const spectrum = await extractAudioFingerprint(file);
+            audioSamplesWrong.push(spectrum);
+            log(`✓ ${file.name}`, 'success');
+            
+            // 更新进度
+            document.getElementById('wrongCount').textContent = `${audioSamplesWrong.length} 个样本 (${audioSamplesWrong.length} samples) (处理中 Processing ${i + 1}/${files.length})`;
+            
+            // 让出控制权，保持UI响应
+            await new Promise(resolve => setTimeout(resolve, 10));
+          } catch (err) {
+            log(`✗ ${file.name}: ${err.message}`, 'error');
+          }
+        }
+        
+        audioTemplateWrong = mergeAudioSamples(audioSamplesWrong);
+        document.getElementById('wrongCount').textContent = audioSamplesWrong.length + ' 个样本 (' + audioSamplesWrong.length + ' samples)';
+        document.getElementById('audioWrongCard').classList.toggle('has-samples', audioSamplesWrong.length > 0);
+      } finally {
+        fileInput.disabled = false;
+        e.target.value = '';
+      }
+    };
+
+    function checkReady() {
+      const ready = audioTemplateCorrect !== null;
+      document.getElementById('startBtn').disabled = !ready;
+      if (ready) {
+        document.getElementById('statusText').textContent = '✅ 准备就绪！点击开始检测 (Ready! Click to start detection)';
+      }
+    }
+
+    // ================= p5.js 波浪可视化 =================
+    let p5Sketch = null;
+    function initP5Visualization() {
+      const container = document.getElementById('visualizationBox');
+      const containerWidth = container.offsetWidth;
+      const containerHeight = container.offsetHeight;
+
+      p5Sketch = new p5(function(sketch) {
+        // Waves visualization code
+        let darkColors = ["#03045e", "#023e8a", "#124559", "#0077b6", "#0096c7"];
+        let lightColors = ["#48cae4", "#90e0ef", "#ade8f4", "#caf0f8", "#EEEEFF"];
+        let bgColors = ['#fdf0d5', '#fcf6bd', '#d0f4de', '#ffccd5'];
+
+        let bgColor, borderColor, sep, numLayers;
+        let mfccData = null;
+
+        sketch.setup = function() {
+          const canvas = sketch.createCanvas(containerWidth, containerHeight);
+          canvas.parent('p5Canvas');
+          // 提高像素密度以实现更清晰的画面
+          sketch.pixelDensity(window.devicePixelRatio || 2);
+          sketch.frameRate(60); // 提高到60fps以获得更流畅的动画
+          sketch.smooth(); // 启用平滑渲染
+          regenerateScene();
+        };
+
+        sketch.draw = function() {
+          sketch.background('#FFFFFF');
+          sketch.fill(bgColor);
+          sketch.noStroke();
+          sketch.rect(0, 0, sketch.width, sketch.height);
+
+          sketch.curveTightness(0.75);
+
+          let W = sketch.width + 100;
+          let resolution = 1;
+          let steps = 6000; // 减少步数以提高性能
+          let wNum = 0;
+          
+          // 使用实时音频频谱数据和正确/错误百分比影响可视化
+          let audioInfluence = 0;
+          let audioSpeed = 0.05;
+          let waveAmplitudeMultiplier = 1.0; // 波浪幅度倍数
+          
+          // 根据检测状态调整波浪行为
+          let isDetecting = typeof isRunning !== 'undefined' && isRunning;
+          
+          if (isDetecting) {
+            // 检测过程中：根据正确和错误的百分比调整波浪幅度 - 强化正确值的影响
+            if (typeof currentCorrectPercent !== 'undefined' && typeof currentWrongPercent !== 'undefined') {
+              // 正确百分比直接映射到幅度倍数（0-100% -> 0.5-4.0倍），大幅增强影响
+              let correctBoost = 0.5 + (currentCorrectPercent / 100) * 3.5;
+              // 错误百分比减少幅度（0-100% -> 1.0-0.2倍），更强烈的惩罚
+              let wrongPenalty = 1.0 - (currentWrongPercent / 100) * 0.8;
+              // 综合影响：正确值增大，错误值减小
+              waveAmplitudeMultiplier = correctBoost * wrongPenalty;
+              // 限制在合理范围内（0.1-4.5倍）
+              waveAmplitudeMultiplier = sketch.constrain(waveAmplitudeMultiplier, 0.1, 4.5);
+            }
+          } else {
+            // 检测前或停止后：波浪平缓，起伏弱
+            waveAmplitudeMultiplier = 0.4; // 平缓的幅度
+          }
+          
+          // 优化音频数据处理，提高响应速度
+          if (isDetecting && currentAudioSpectrum && currentAudioSpectrum.length > 0) {
+            // 检测过程中：计算音频频谱的平均能量
+            let avgEnergy = currentAudioSpectrum.reduce((a, b) => a + b, 0) / currentAudioSpectrum.length;
+            // 计算音频频谱的峰值
+            let peakEnergy = Math.max(...currentAudioSpectrum);
+            // 使用低频段的能量（前1/3的频谱，更敏感）
+            let lowFreqEnergy = currentAudioSpectrum.slice(0, Math.floor(currentAudioSpectrum.length / 3))
+              .reduce((a, b) => a + b, 0) / Math.floor(currentAudioSpectrum.length / 3);
+            
+            // 更直接和明显的音频影响映射
+            audioInfluence = avgEnergy * 25 + peakEnergy * 15; // 增加影响系数
+            audioSpeed = 0.05 + lowFreqEnergy * 0.15; // 增加速度响应
+            wNum = audioInfluence;
+          } else {
+            // 检测前或停止后：波浪往前流，平缓
+            audioInfluence = 0;
+            audioSpeed = 0.08; // 保持往前流的速度
+            wNum = 0;
+          }
+
+          for (let k = 0; k < numLayers; k++) {
+            let offsetT = k * 0.15;
+            let palette = k % 2 === 1 ? darkColors : lightColors;
+            
+            // 根据音频频谱选择颜色
+            let colorIndex = 0;
+            if (currentAudioSpectrum && currentAudioSpectrum.length > 0) {
+              // 使用不同频率段影响不同层的颜色
+              let freqIndex = sketch.floor(sketch.map(k, 0, numLayers, 0, currentAudioSpectrum.length - 1));
+              let freqValue = currentAudioSpectrum[freqIndex] || 0;
+              colorIndex = sketch.floor(sketch.map(freqValue, 0, 1, 0, palette.length));
+            } else {
+              colorIndex = sketch.floor(sketch.map(sketch.noise(wNum * 0.5, k * 0.5), 0, 1, 0, palette.length));
+            }
+            
+            let fillColor = sketch.color(palette[colorIndex]);
+            // 透明度根据音频能量调整
+            let alpha = 50 + 20 * k + (audioInfluence * 30);
+            fillColor.setAlpha(sketch.constrain(alpha, 50, 200));
+
+            sketch.fill(fillColor);
+            sketch.stroke(palette[colorIndex]);
+            sketch.strokeWeight(0.5 + 0.1 * k);
+
+            sketch.beginShape();
+            let previousJ = -1;
+            let isNewLine = true;
+
+            for (let _step = 0; _step <= steps; _step += resolution) {
+              let T = _step / W / 3;
+              T = T / sep + offsetT;
+
+              let _j = (_step % W);
+              let j = W / 4 + _j;
+
+              let X = j;
+              let Y = 0;
+              let timeFalloff = 1 - T / 5;
+              // 波浪大小根据检测状态和正确/错误百分比调整
+              let baseWaveSize = 5;
+              if (isDetecting && currentAudioSpectrum && currentAudioSpectrum.length > 0 && audioInfluence > 0) {
+                // 检测过程中：直接使用已计算的audioInfluence，避免重复计算
+                baseWaveSize = 5 + (audioInfluence / 35) * 15; // 更直接的映射
+              } else {
+                // 检测前或停止后：保持基础大小，平缓
+                baseWaveSize = 5;
+              }
+              // 正确百分比直接强烈影响波浪大小（仅在检测中）
+              let correctSizeMultiplier = 0.5;
+              if (isDetecting && typeof currentCorrectPercent !== 'undefined') {
+                correctSizeMultiplier = 0.5 + (currentCorrectPercent / 100) * 1.5;
+              } else {
+                // 检测前或停止后：保持较小大小，平缓
+                correctSizeMultiplier = 0.5;
+              }
+              // 应用正确/错误百分比的影响：正确值增大幅度，错误值减小幅度
+              let waveSize = (baseWaveSize * waveAmplitudeMultiplier * correctSizeMultiplier) / Math.max(timeFalloff, 0.1);
+
+              if (_j < previousJ) {
+                sketch.vertex(sketch.width + 200, Y + waveSize + 5000 / j - sketch.height / 4);
+                sketch.vertex(sketch.width + 200, sketch.height + 200);
+                sketch.vertex(-200, sketch.height + 200);
+                sketch.endShape(sketch.CLOSE);
+                sketch.beginShape();
+                isNewLine = true;
+                wNum++;
+              }
+
+              previousJ = _j;
+
+              while (waveSize < W / 5 / timeFalloff) {
+                // 使用音频影响的速度 - 根据检测状态调整
+                let speedMultiplier = 1.0;
+                if (isDetecting) {
+                  // 检测过程中：强化正确百分比对速度的影响
+                  if (typeof currentCorrectPercent !== 'undefined') {
+                    // 正确值越高，速度越快（0-100% -> 0.5-1.8倍）
+                    speedMultiplier = 0.5 + (currentCorrectPercent / 100) * 1.3;
+                  } else {
+                    speedMultiplier = 0.5;
+                  }
+                } else {
+                  // 检测前或停止后：保持往前流的速度
+                  speedMultiplier = 1.2; // 往前流
+                }
+                let A = ((X / waveSize + T + sketch.frameCount * audioSpeed * speedMultiplier) % 1) * waveSize - waveSize / 2;
+                let deform = 1 - ((A * A) / (waveSize * waveSize)) * 4;
+                let C = sketch.cos(deform);
+                let S = sketch.sin(deform);
+
+                X += A * C + Y * S - A - 20;
+                Y = Y * C - A * S;
+
+                waveSize /= 0.6;
+              }
+
+              // 波浪高度也受到检测状态和正确/错误百分比的影响
+              let heightOffset = 5000 / j;
+              // 正确百分比直接强烈影响高度（仅在检测中）
+              let correctHeightMultiplier = 0.3;
+              if (isDetecting && typeof currentCorrectPercent !== 'undefined') {
+                // 检测过程中：正确值越大，波浪向上越高（0-100% -> 0.3-2.5倍）
+                correctHeightMultiplier = 0.3 + (currentCorrectPercent / 100) * 2.2;
+              } else {
+                // 检测前或停止后：保持较低高度，平缓（0.3倍）
+                correctHeightMultiplier = 0.3;
+              }
+              // 音频影响高度（仅在检测中）
+              let audioHeightMultiplier = 1.0;
+              if (isDetecting) {
+                audioHeightMultiplier = 1.0 + (audioInfluence / 40) * 0.5;
+              } else {
+                audioHeightMultiplier = 1.0; // 检测前或停止后：不增加音频影响
+              }
+              // 综合高度倍数：正确值影响最大，其次是幅度倍数和音频
+              let heightMultiplier = correctHeightMultiplier * waveAmplitudeMultiplier * audioHeightMultiplier;
+              let finalY = Y + waveSize + heightOffset * heightMultiplier - sketch.height / 4;
+
+              if (isNewLine) {
+                sketch.vertex(-200, finalY);
+                sketch.vertex(X - W / 7, finalY);
+                isNewLine = false;
+              } else {
+                sketch.vertex(X - W / 7, finalY);
+              }
+            }
+
+            sketch.endShape();
+          }
+
+          // Draw border
+          sketch.noFill();
+          sketch.stroke(borderColor);
+          sketch.strokeWeight(10);
+          sketch.rect(0, 0, sketch.width, sketch.height);
+        };
+
+        sketch.mousePressed = function() {
+          regenerateScene();
+          sketch.redraw();
+        };
+
+        function regenerateScene() {
+          bgColor = sketch.random(bgColors);
+          borderColor = sketch.random(darkColors);
+          sep = sketch.random(0.5, 0.8);
+          numLayers = sketch.random([2, 3, 4]);
+        }
+
+        sketch.windowResized = function() {
+          const container = document.getElementById('visualizationBox');
+          sketch.resizeCanvas(container.offsetWidth, container.offsetHeight);
+          // 重新设置像素密度以确保清晰度
+          sketch.pixelDensity(window.devicePixelRatio || 2);
+        };
+      });
+    }
+
+    // 页面加载时初始化p5.js可视化
+    window.addEventListener('load', () => {
+      setTimeout(initP5Visualization, 100);
+    });
+
+    // ================= 开始/停止检测 =================
+    document.getElementById('startBtn').onclick = async () => {
+      try {
+        log('正在访问摄像头和麦克风...', 'info');
+        
+        // 同时请求摄像头和麦克风
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            width: 640, 
+            height: 480, 
+            facingMode: 'user' 
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: false,  // 关闭噪音抑制，保留更多音频细节，提高收音能力
+            autoGainControl: true,     // 启用自动增益控制，自动调整音量
+            sampleRate: 44100,        // 明确指定采样率，确保与样本处理一致
+            channelCount: 1,          // 单声道，减少处理负担
+            latency: 0,               // 最小延迟
+            volume: 1.0               // 最大音量
+          }
+        });
+        
+        // 检查音频轨道是否存在且启用
+        const audioTracks = mediaStream.getAudioTracks();
+        if (audioTracks.length === 0) {
+          throw new Error('未检测到音频输入设备');
+        }
+        
+        const audioTrack = audioTracks[0];
+        if (audioTrack.readyState !== 'live') {
+          throw new Error('音频设备未激活');
+        }
+        
+        log(`音频设备已连接: ${audioTrack.label || '默认麦克风'}`, 'success');
+        
+        // 设置摄像头视频
+        const cameraVideo = document.getElementById('cameraVideo');
+        cameraVideo.srcObject = mediaStream;
+        await cameraVideo.play();
+        log('摄像头已启动', 'success');
+        
+        // 设置音频上下文（必须在用户交互后创建）
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!audioCtx || audioCtx.state === 'closed') {
+          audioCtx = new AudioContextClass({
+            sampleRate: 44100  // 确保采样率一致
+          });
+        }
+        
+        // 如果音频上下文被暂停，恢复它
+        if (audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+          log('音频上下文已恢复', 'success');
+        }
+        
+        // 创建音频源
+        micSource = audioCtx.createMediaStreamSource(mediaStream);
+        
+        // 创建增益节点，增强麦克风收音能力
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = currentGain;
+        
+        // 创建动态压缩器，提高远距离声音的清晰度
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.value = -50;      // 压缩阈值
+        compressor.knee.value = 40;            // 压缩曲线
+        compressor.ratio.value = 12;           // 压缩比
+        compressor.attack.value = 0;           // 快速响应
+        compressor.release.value = 0.25;        // 快速释放
+        
+        // 创建分析器
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = CONFIG.fftSize;
+        analyser.smoothingTimeConstant = 0.1;   // 大幅降低平滑度，提高实时响应速度
+        analyser.minDecibels = -100;            // 进一步降低最小分贝，提高敏感度
+        analyser.maxDecibels = -5;              // 提高最大分贝范围
+        
+        // 连接音频节点：麦克风 -> 增益 -> 压缩器 -> 分析器
+        micSource.connect(gainNode);
+        gainNode.connect(compressor);
+        compressor.connect(analyser);
+        
+        // 监听音频轨道状态
+        audioTrack.onended = () => {
+          log('音频输入已断开', 'error');
+          document.getElementById('micStatus').textContent = '❌ 音频输入已断开 (Audio input disconnected)';
+          document.getElementById('micStatus').style.background = 'rgba(255,107,107,0.7)';
+        };
+        
+        log(`音频采样率: ${audioCtx.sampleRate}Hz`, 'success');
+        log('音频处理链已建立', 'success');
+        
+        isRunning = true;
+        startDetectionLoop();
+        
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+        document.getElementById('statusText').textContent = '🔴 检测中... (Detecting...)';
+        log('检测启动！', 'success');
+        
+      } catch (err) {
+        console.error('启动错误:', err);
+        alert('启动失败: ' + err.message + '\n\n请确保：\n1. 已授予麦克风权限\n2. 麦克风设备正常工作\n3. 浏览器支持音频输入');
+        log('启动失败: ' + err.message, 'error');
+        
+        // 清理
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(t => t.stop());
+          mediaStream = null;
+        }
+        const cameraVideo = document.getElementById('cameraVideo');
+        if (cameraVideo) {
+          cameraVideo.srcObject = null;
+        }
+        document.getElementById('micStatus').textContent = '❌ 音频输入失败 (Audio input failed)';
+        document.getElementById('micStatus').style.background = 'rgba(255,107,107,0.7)';
+      }
+    };
+
+    document.getElementById('stopBtn').onclick = () => {
+      isRunning = false;
+      
+      if (animationId) cancelAnimationFrame(animationId);
+      if (micSource) {
+        micSource.disconnect();
+        micSource = null;
+      }
+      if (gainNode) {
+        gainNode.disconnect();
+        gainNode = null;
+      }
+      if (compressor) {
+        compressor.disconnect();
+        compressor = null;
+      }
+      if (analyser) {
+        analyser = null;
+      }
+      if (audioCtx && audioCtx.state !== 'closed') {
+        audioCtx.close().catch(err => console.error('关闭音频上下文失败:', err));
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      
+      // 停止摄像头
+      const cameraVideo = document.getElementById('cameraVideo');
+      if (cameraVideo) {
+        cameraVideo.srcObject = null;
+      }
+      
+      // 清空音频频谱数据和百分比，使可视化回到默认状态
+      currentAudioSpectrum = null;
+      currentCorrectPercent = 0;
+      currentWrongPercent = 0;
+      
+      // 重置麦克风状态指示器
+      const micStatusEl = document.getElementById('micStatus');
+      if (micStatusEl) {
+        micStatusEl.textContent = '🎤 等待音频输入... (Waiting for audio input...)';
+        micStatusEl.style.background = 'rgba(102,126,234,0.7)';
+      }
+      
+      document.getElementById('startBtn').style.display = 'block';
+      document.getElementById('stopBtn').style.display = 'none';
+      document.getElementById('statusText').textContent = '⏸ 已停止 (Stopped)';
+      document.getElementById('audioBox').classList.remove('success', 'error');
+      document.getElementById('audioIndicator').classList.remove('active', 'wrong');
+      document.getElementById('audioIndicator').textContent = '🎤 发声检测 (Vocal Detection)';
+      document.getElementById('audioLevel').textContent = '实时发声量化 (Real-time Vocal Quantization): 0%';
+      
+      document.getElementById('barCorrectFill').style.width = '0%';
+      document.getElementById('barWrongFill').style.width = '0%';
+      document.getElementById('barCorrectVal').textContent = '0%';
+      document.getElementById('barWrongVal').textContent = '0%';
+      
+      log('检测停止 (Detection stopped)', 'warning');
+    };
+
+    // ================= 主检测循环 =================
+    function startDetectionLoop() {
+      const waveCanvas = document.getElementById('waveCanvas');
+      const waveCtx = waveCanvas.getContext('2d');
+      waveCanvas.width = waveCanvas.offsetWidth * 2;
+      waveCanvas.height = waveCanvas.offsetHeight * 2;
+      waveCtx.scale(2, 2);
+      
+      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      const timeData = new Uint8Array(analyser.fftSize);
+      const timeDataFloat = new Float32Array(analyser.fftSize);
+      
+      // 保存上一次计算的相似度分数，确保百分比持续更新
+      let lastScoreCorrect = 0;
+      let lastScoreWrong = 0;
+      let frameCounter = 0;
+      
+      // 平滑处理变量，用于百分比平滑过渡
+      let smoothedCorrectPercent = 0;
+      let smoothedWrongPercent = 0;
+      const smoothingFactor = 0.5; // 平滑系数，增加以提高响应速度
+      
+      // 用于累积音频帧的缓冲区（用于MFCC特征提取，与样本处理方式一致）
+      const audioFrameBuffer = [];
+      const frameLength = Math.floor(audioCtx.sampleRate * 0.025); // 25ms帧长，与样本处理一致
+      const frameStep = Math.floor(audioCtx.sampleRate * 0.02);    // 20ms帧移，与样本处理一致
+      let mfccFeatureBuffer = []; // 存储多帧MFCC特征，用于计算平均值
+      
+      const detect = () => {
+        if (!isRunning) return;
+        
+        // 检查音频上下文和音频轨道状态
+        if (!audioCtx || audioCtx.state === 'closed') {
+          log('音频上下文已关闭', 'error');
+          return;
+        }
+        
+        if (mediaStream) {
+          const audioTracks = mediaStream.getAudioTracks();
+          if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') {
+            document.getElementById('micStatus').textContent = '❌ 音频输入未连接 (Audio input not connected)';
+            document.getElementById('micStatus').style.background = 'rgba(255,107,107,0.7)';
+            return;
+          }
+        }
+        
+        // 音频分析
+        analyser.getByteFrequencyData(freqData);
+        analyser.getByteTimeDomainData(timeData);
+        
+        // 将timeData转换为Float32Array用于MFCC计算
+        for (let i = 0; i < timeData.length; i++) {
+          timeDataFloat[i] = (timeData[i] - 128) / 128.0;
+        }
+        
+        // 计算RMS音量
+        let rms = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const n = (timeData[i] - 128) / 128;
+          rms += n * n;
+        }
+        rms = Math.sqrt(rms / timeData.length);
+        const volumePercent = Math.min(100, Math.round(rms * 200));
+        document.getElementById('audioLevel').textContent = `实时发声量化 (Real-time Vocal Quantization): ${volumePercent}%`;
+        
+        // 更新麦克风状态指示器
+        const micStatusEl = document.getElementById('micStatus');
+        if (rms > CONFIG.noiseGate) {
+          micStatusEl.textContent = `🎤 正在接收音频 (Receiving audio) (${volumePercent}%)`;
+          micStatusEl.style.background = 'rgba(0,255,136,0.7)';
+        } else if (rms > CONFIG.noiseGate * 0.5) {
+          micStatusEl.textContent = '🎤 音频输入正常（请发声） (Audio input normal - please vocalize)';
+          micStatusEl.style.background = 'rgba(255,193,7,0.7)';
+        } else {
+          micStatusEl.textContent = '🎤 等待音频输入... (Waiting for audio input...)';
+          micStatusEl.style.background = 'rgba(102,126,234,0.7)';
+        }
+        
+        let liveSpectrum = Array.from(freqData).map(v => v / 255);
+        if (rms < CONFIG.noiseGate) {
+          liveSpectrum = liveSpectrum.map(v => v * 0.1);
+        }
+        
+        // 累积音频数据用于MFCC特征提取（与样本处理方式一致）
+        // 大幅提高敏感度：降低阈值，更容易检测远距离声音
+        if (rms > CONFIG.noiseGate * 0.2) {
+          // 将当前帧数据添加到缓冲区
+          for (let i = 0; i < timeDataFloat.length; i++) {
+            audioFrameBuffer.push(timeDataFloat[i]);
+          }
+          
+          // 保持缓冲区大小（保留足够的数据用于分帧处理，减少到5帧提高响应速度）
+          const maxBufferSize = frameLength * 5; // 保留5帧数据
+          if (audioFrameBuffer.length > maxBufferSize) {
+            audioFrameBuffer.splice(0, audioFrameBuffer.length - maxBufferSize);
+          }
+        } else {
+          // 如果音量太低，平滑清空缓冲区（不完全清空，保留部分历史数据）
+          if (audioFrameBuffer.length > frameLength * 2) {
+            audioFrameBuffer.splice(0, Math.floor(audioFrameBuffer.length * 0.3));
+          }
+          // 只有在完全没有声音时才清空MFCC缓冲区
+          if (rms < CONFIG.noiseGate * 0.1) {
+            mfccFeatureBuffer.length = 0;
+          }
+        }
+        
+        // 检查模板是否存在并计算相似度
+        let scoreCorrect = lastScoreCorrect;
+        let scoreWrong = lastScoreWrong;
+        
+        // 每帧提取一次MFCC特征（最大化实时响应速度）
+        // 大幅提高敏感度：降低阈值，更容易检测远距离声音
+        frameCounter++;
+        if (frameCounter >= 1 && audioFrameBuffer.length >= frameLength && rms > CONFIG.noiseGate * 0.2) {
+          frameCounter = 0;
+          
+          try {
+            // 分帧提取MFCC特征（与样本处理方式一致，减少处理帧数提高速度）
+            const numFramesToProcess = Math.min(2, Math.floor((audioFrameBuffer.length - frameLength) / frameStep) + 1);
+            
+            for (let i = 0; i < numFramesToProcess; i++) {
+              const start = audioFrameBuffer.length - frameLength - (numFramesToProcess - 1 - i) * frameStep;
+              if (start >= 0 && start + frameLength <= audioFrameBuffer.length) {
+                const frame = audioFrameBuffer.slice(start, start + frameLength);
+                const mfcc = computeMFCC(frame, audioCtx.sampleRate);
+                mfccFeatureBuffer.push(mfcc);
+              }
+            }
+            
+            // 保持MFCC特征缓冲区大小（只保留最近的帧，减少到5帧提高响应速度）
+            const maxMFCCFrames = 5;
+            if (mfccFeatureBuffer.length > maxMFCCFrames) {
+              mfccFeatureBuffer.splice(0, mfccFeatureBuffer.length - maxMFCCFrames);
+            }
+            
+            // 计算MFCC特征的平均值（与样本处理方式一致）
+            if (mfccFeatureBuffer.length > 0) {
+              const numCoeffs = mfccFeatureBuffer[0].length;
+              const avgMFCC = new Array(numCoeffs).fill(0);
+              
+              mfccFeatureBuffer.forEach(frameMFCC => {
+                frameMFCC.forEach((coeff, idx) => {
+                  avgMFCC[idx] += coeff;
+                });
+              });
+              
+              avgMFCC.forEach((val, idx) => {
+                avgMFCC[idx] = val / mfccFeatureBuffer.length;
+              });
+              
+              // 改进的归一化方式（与样本处理方式一致）：使用L2范数归一化
+              let norm = 0;
+              avgMFCC.forEach(v => {
+                norm += v * v;
+              });
+              norm = Math.sqrt(norm);
+              
+              const normalizedMFCC = norm > 1e-10 
+                ? avgMFCC.map(v => v / norm)
+                : (() => {
+                    const maxVal = Math.max(...avgMFCC.map(Math.abs));
+                    return maxVal > 1e-10 ? avgMFCC.map(v => v / maxVal) : avgMFCC;
+                  })();
+              
+              // 与模板比较：使用综合相似度，增强判别能力
+              let baseScoreCorrect = 0;
+              let baseScoreWrong = 0;
+              
+              if (audioTemplateCorrect && audioTemplateCorrect.length > 0) {
+                baseScoreCorrect = combinedSimilarity(audioTemplateCorrect, normalizedMFCC);
+              }
+              
+              if (audioTemplateWrong && audioTemplateWrong.length > 0) {
+                baseScoreWrong = combinedSimilarity(audioTemplateWrong, normalizedMFCC);
+              }
+              
+              // 如果同时有正确和错误模板，使用相对差异增强判别
+              if (audioTemplateCorrect && audioTemplateCorrect.length > 0 && 
+                  audioTemplateWrong && audioTemplateWrong.length > 0) {
+                const diff = baseScoreCorrect - baseScoreWrong;
+                
+                // 增大阈值，增强判别能力：从0.05提高到0.15，让判别更严格
+                if (diff > 0.15) {
+                  // 吸开样本明显更相似，大幅增强吸开分数，大幅降低未吸开分数
+                  scoreCorrect = Math.min(1, baseScoreCorrect + diff * 0.6);
+                  scoreWrong = Math.max(0, baseScoreWrong - diff * 0.5);
+                } else if (diff < -0.15) {
+                  // 未吸开样本明显更相似，大幅增强未吸开分数，大幅降低吸开分数
+                  scoreWrong = Math.min(1, baseScoreWrong - diff * 0.6);
+                  scoreCorrect = Math.max(0, baseScoreCorrect + diff * 0.5);
+                } else {
+                  // 差异不明显，强制拉开差异 - 增强拉开力度
+                  if (baseScoreCorrect > baseScoreWrong) {
+                    scoreCorrect = Math.min(1, baseScoreCorrect + 0.25);
+                    scoreWrong = Math.max(0, baseScoreWrong - 0.25);
+                  } else {
+                    scoreWrong = Math.min(1, baseScoreWrong + 0.25);
+                    scoreCorrect = Math.max(0, baseScoreCorrect - 0.25);
+                  }
+                }
+              } else {
+                // 只有一个模板时，需要更严格的阈值
+                if (audioTemplateCorrect && audioTemplateCorrect.length > 0) {
+                  // 只有正确模板，需要高分才判定为正确
+                  scoreCorrect = baseScoreCorrect > 0.7 ? baseScoreCorrect : baseScoreCorrect * 0.5;
+                  scoreWrong = 1 - baseScoreCorrect;
+                } else if (audioTemplateWrong && audioTemplateWrong.length > 0) {
+                  // 只有错误模板，需要高分才判定为错误
+                  scoreWrong = baseScoreWrong > 0.7 ? baseScoreWrong : baseScoreWrong * 0.5;
+                  scoreCorrect = 1 - baseScoreWrong;
+                } else {
+                  scoreCorrect = baseScoreCorrect;
+                  scoreWrong = baseScoreWrong;
+                }
+              }
+              
+              // 保存结果
+              lastScoreCorrect = scoreCorrect;
+              lastScoreWrong = scoreWrong;
+            }
+          } catch (err) {
+            console.error('MFCC提取错误:', err);
+            log('MFCC特征提取失败: ' + err.message, 'error');
+          }
+        }
+        // 注意：音量低时的重置逻辑已在百分比计算中处理（检查rms > CONFIG.noiseGate）
+        
+        // 计算百分比（0-100），实时精确反映相似度变化
+        // 关键修复：只有在有声音输入时才计算和显示百分比
+        let correctPercent = 0;
+        let wrongPercent = 0;
+        
+        // 只有在音量超过噪音门限时才计算百分比
+        if (rms > CONFIG.noiseGate) {
+          // 直接使用相似度分数计算百分比，保留真实变化
+          correctPercent = Math.max(0, Math.min(100, scoreCorrect * 100));
+          wrongPercent = Math.max(0, Math.min(100, scoreWrong * 100));
+          
+          // 应用平滑处理，使百分比变化更流畅
+          smoothedCorrectPercent = smoothedCorrectPercent * (1 - smoothingFactor) + correctPercent * smoothingFactor;
+          smoothedWrongPercent = smoothedWrongPercent * (1 - smoothingFactor) + wrongPercent * smoothingFactor;
+          
+          // 确保平滑后的值在合理范围内
+          smoothedCorrectPercent = Math.max(0, Math.min(100, smoothedCorrectPercent));
+          smoothedWrongPercent = Math.max(0, Math.min(100, smoothedWrongPercent));
+          
+          // 使用平滑后的值作为显示值
+          correctPercent = smoothedCorrectPercent;
+          wrongPercent = smoothedWrongPercent;
+        } else {
+          // 没有声音输入时，平滑过渡到0
+          smoothedCorrectPercent = smoothedCorrectPercent * (1 - smoothingFactor);
+          smoothedWrongPercent = smoothedWrongPercent * (1 - smoothingFactor);
+          
+          // 如果值已经很小，直接设为0
+          if (smoothedCorrectPercent < 0.5) smoothedCorrectPercent = 0;
+          if (smoothedWrongPercent < 0.5) smoothedWrongPercent = 0;
+          
+          correctPercent = smoothedCorrectPercent;
+          wrongPercent = smoothedWrongPercent;
+          
+          // 如果完全没有声音，重置缓存的分数
+          if (rms < CONFIG.noiseGate * 0.1) {
+            lastScoreCorrect = 0;
+            lastScoreWrong = 0;
+          }
+        }
+        
+        // 实时更新柱状图显示 - 确保元素存在，使用1位小数精度
+        const barCorrectFill = document.getElementById('barCorrectFill');
+        const barWrongFill = document.getElementById('barWrongFill');
+        const barCorrectVal = document.getElementById('barCorrectVal');
+        const barWrongVal = document.getElementById('barWrongVal');
+        
+        // 格式化百分比，保留1位小数
+        const correctPercentFormatted = correctPercent.toFixed(1);
+        const wrongPercentFormatted = wrongPercent.toFixed(1);
+        
+        if (barCorrectFill) barCorrectFill.style.width = correctPercent + '%';
+        if (barWrongFill) barWrongFill.style.width = wrongPercent + '%';
+        if (barCorrectVal) barCorrectVal.textContent = correctPercentFormatted + '%';
+        if (barWrongVal) barWrongVal.textContent = wrongPercentFormatted + '%';
+        
+        // 传递实时音频频谱数据和百分比到可视化
+        sendAudioSpectrumToVisualization(freqData, correctPercent, wrongPercent);
+        
+        // 增强判别能力：需要更明显的差异才判定
+        const isAudioCorrect = audioTemplateCorrect && scoreCorrect > currentThreshold && 
+                               scoreCorrect > scoreWrong + 0.1 && rms > CONFIG.noiseGate;
+        const isAudioWrong = audioTemplateWrong && scoreWrong > scoreCorrect + 0.1 && 
+                            scoreWrong > 0.5 && rms > CONFIG.noiseGate;
+        
+        // 绘制波形
+        const w = waveCanvas.offsetWidth;
+        const h = waveCanvas.offsetHeight;
+        waveCtx.fillStyle = 'rgba(30, 60, 114, 0.3)';
+        waveCtx.fillRect(0, 0, w, h);
+        
+        waveCtx.fillStyle = isAudioCorrect ? 'rgba(0,255,136,0.4)' : (isAudioWrong ? 'rgba(255,107,107,0.4)' : 'rgba(102,126,234,0.4)');
+        const barW = w / freqData.length * 2;
+        for (let i = 0; i < freqData.length / 2; i++) {
+          const barH = (freqData[i] / 255) * h;
+          waveCtx.fillRect(i * barW, h - barH, barW - 1, barH);
+        }
+        
+        waveCtx.strokeStyle = isAudioCorrect ? '#00ff88' : (isAudioWrong ? '#ff6b6b' : '#667eea');
+        waveCtx.lineWidth = 2;
+        waveCtx.beginPath();
+        const sliceW = w / timeData.length;
+        for (let i = 0; i < timeData.length; i++) {
+          const y = (timeData[i] / 128) * h / 2;
+          i === 0 ? waveCtx.moveTo(0, y) : waveCtx.lineTo(i * sliceW, y);
+        }
+        waveCtx.stroke();
+        
+        // 更新UI
+        const audioInd = document.getElementById('audioIndicator');
+        const audioBox = document.getElementById('audioBox');
+        const statusEl = document.getElementById('statusText');
+        
+        audioInd.classList.remove('active', 'wrong');
+        audioBox.classList.remove('success', 'error');
+        
+        if (isAudioCorrect) {
+          audioInd.classList.add('active');
+          audioInd.textContent = `🎤 发声检测 (Vocal Detection) ✅ 吸开 (Correct) ${correctPercentFormatted}%`;
+          audioBox.classList.add('success');
+        } else if (isAudioWrong) {
+          audioInd.classList.add('wrong');
+          audioInd.textContent = `🎤 发声检测 (Vocal Detection) ❌ 未吸开 (Incorrect) ${wrongPercentFormatted}%`;
+          audioBox.classList.add('error');
+        } else {
+          audioInd.textContent = `🎤 发声检测 (Vocal Detection) 吸开 (Correct):${correctPercentFormatted}% 未吸开 (Incorrect):${wrongPercentFormatted}%`;
+        }
+        
+        if (isAudioCorrect) {
+          statusEl.textContent = `🎉 完美！已吸开 (Perfect! Correct) ${correctPercentFormatted}%`;
+        } else if (isAudioWrong) {
+          statusEl.textContent = `❌ 未吸开 (Incorrect) ${wrongPercentFormatted}%，请调整 (Please adjust)`;
+        } else {
+          statusEl.textContent = `🔴 检测中... (Detecting...) 吸开 (Correct):${correctPercentFormatted}% 未吸开 (Incorrect):${wrongPercentFormatted}%`;
+        }
+        
+        animationId = requestAnimationFrame(detect);
+      };
+      
+      detect();
+    }
+  </script>
+</body>
+</html>

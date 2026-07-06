@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MemoTune 音乐疗愈记录平台</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,body{font-family:'Nunito','PingFang SC',system-ui,sans-serif!important;box-sizing:border-box;margin:0;padding:0}
+:root{--base:#E8DDCA;--sd:#C4B9A6;--sl:#FFFAEF;--purple:#7B6EC8;--purple-dk:#5A4FA8;--green:#4A8870;--green-dk:#2D5F54;--blue:#5B8BAD;--text:#4A433F;--muted:#9A8F82;--light:#B5A898;--danger:#C0392B}
+.raised{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl)}
+.raised-sm{box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)}
+.raised-xs{box-shadow:4px 4px 8px var(--sd),-4px -4px 8px var(--sl)}
+.sunken{box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl)}
+.sunken-sm{box-shadow:inset 4px 4px 8px var(--sd),inset -4px -4px 8px var(--sl)}
+body{background:var(--base);color:var(--text);min-height:100vh}
+.page{display:none;min-height:100vh}
+button{cursor:pointer;border:none;background:var(--base);color:var(--text);font-family:inherit;transition:box-shadow .2s,transform .15s}
+input,select,textarea{font-family:inherit;border:none;background:var(--base);color:var(--text);outline:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes breathe-p{0%,100%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 0 rgba(123,110,200,.4)}50%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 8px rgba(123,110,200,0)}}
+@keyframes breathe-b{0%,100%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 0 rgba(91,139,173,.4)}50%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 8px rgba(91,139,173,0)}}
+@keyframes breathe-g{0%,100%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 0 rgba(74,136,112,.4)}50%{box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl),0 0 0 8px rgba(74,136,112,0)}}
+</style>
+</head>
+<body>
+
+<!-- ══ DASHBOARD ══════════════════════════════════════════ -->
+<div id="page-dash" class="page">
+<style>
+#page-dash{background:var(--base)}
+.dash-hd{display:flex;align-items:center;gap:20px;padding:18px 40px;background:var(--base);box-shadow:0 4px 20px rgba(196,185,166,.35);position:sticky;top:0;z-index:10}
+.dash-appname{font-size:19px;font-weight:800;color:var(--purple)}
+.dash-greet{flex:1;margin-left:12px}
+.dash-greet-main{font-size:17px;font-weight:700;color:#3A342F;display:block}
+.dash-greet-sub{font-size:12px;color:#A89E96;font-weight:500}
+.dash-body{display:grid;grid-template-columns:2fr 3fr;gap:32px;padding:32px 40px;max-width:1240px;margin:0 auto;align-items:start}
+.dash-left{display:flex;flex-direction:column;gap:20px}
+.sel-label{font-size:12px;font-weight:700;color:#A89E96;letter-spacing:.06em;margin-bottom:8px;display:block}
+.dash-sel{padding:13px 16px;font-size:15px;font-weight:600;border-radius:16px;width:100%;color:#3A342F;cursor:pointer;box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl);-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A433F' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:40px}
+.p-card{background:var(--base);border-radius:28px;padding:28px 26px;box-shadow:12px 12px 24px var(--sd),-12px -12px 24px var(--sl);display:flex;flex-direction:column;gap:16px;animation:fadeUp .45s ease both}
+.p-avatar{width:54px;height:54px;border-radius:18px;background:linear-gradient(135deg,#C5BCEE,#8DC4A8);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:8px 8px 16px var(--sd),-8px -8px 16px var(--sl)}
+.pill{font-size:12px;font-weight:700;padding:5px 13px;border-radius:100px;background:var(--base);white-space:nowrap;box-shadow:4px 4px 8px var(--sd),-4px -4px 8px var(--sl)}
+.divider{height:1px;background:linear-gradient(to right,transparent,rgba(196,185,166,.55),transparent)}
+.rec-chip{display:inline-block;font-size:13px;font-weight:700;padding:8px 16px;border-radius:14px;background:var(--base);color:#7B6350;box-shadow:inset 5px 5px 10px var(--sd),inset -5px -5px 10px var(--sl)}
+.pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#C5BCEE;animation:pulse 1.4s ease-in-out infinite;margin-right:6px}
+.mod-btn{position:relative;border-radius:28px;padding:24px 26px;text-align:left;min-height:136px;display:flex;flex-direction:column;gap:12px;width:100%;box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl);transition:box-shadow .25s,transform .2s}
+.mod-btn:hover{transform:translateY(-3px);box-shadow:14px 14px 28px var(--sd),-14px -14px 28px var(--sl)}
+.mod-btn:active{transform:translateY(0);box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl)}
+.rec-badge{position:absolute;top:18px;right:20px;font-size:11px;font-weight:700;color:#fff;padding:5px 13px;border-radius:100px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.mod-icon-btn{width:50px;height:50px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--base);flex-shrink:0;box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)}
+.score-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+</style>
+<header class="dash-hd">
+  <span style="font-size:22px">🎵</span>
+  <span class="dash-appname">MemoTune</span>
+  <div class="dash-greet">
+    <span class="dash-greet-main" id="d-greet"></span>
+    <span class="dash-greet-sub" id="d-date"></span>
+  </div>
+</header>
+<main class="dash-body">
+  <section class="dash-left">
+    <div>
+      <label class="sel-label">🧑‍⚕️ 当前患者</label>
+      <select class="dash-sel" id="d-sel" onchange="onPatient(this.value)"></select>
+    </div>
+    <div id="d-pcard"></div>
+  </section>
+  <section style="display:flex;flex-direction:column;gap:20px" id="d-mods"></section>
+</main>
+</div>
+
+<!-- ══ MODULE 1 ════════════════════════════════════════════ -->
+<div id="page-m1" class="page">
+<style>
+.mod-hd{display:flex;align-items:center;gap:16px;padding:16px 32px;background:var(--base);box-shadow:0 4px 16px rgba(196,185,166,.3);position:sticky;top:0;z-index:10}
+.mod-back{font-size:14px;font-weight:700;color:var(--muted);padding:8px 16px;border-radius:20px}
+.mod-title{font-size:18px;font-weight:800;color:#2C2420}
+.mod-sub{font-size:12px;color:var(--muted);font-weight:500}
+.end-btn{font-size:13px;font-weight:700;padding:9px 22px;border-radius:20px;color:#fff;background:var(--danger);box-shadow:0 4px 14px rgba(192,57,43,.3)}
+.mod-wrap{max-width:960px;margin:0 auto;padding:28px 32px}
+.card{background:var(--base);border-radius:24px;padding:26px;margin-bottom:20px;box-shadow:10px 10px 20px var(--sd),-10px -10px 20px var(--sl)}
+.card-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;margin-bottom:14px}
+.song-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;background:var(--base);box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl);margin-bottom:10px}
+.mode-btn{padding:18px;border-radius:20px;text-align:left;background:var(--base);box-shadow:8px 8px 16px var(--sd),-8px -8px 16px var(--sl);transition:box-shadow .2s}
+.mode-btn.on{box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl);color:var(--purple)}
+.start-btn{width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:50px;background:linear-gradient(135deg,var(--purple),var(--purple-dk));color:#fff;box-shadow:6px 6px 14px var(--sd),-4px -4px 10px var(--sl),0 6px 20px rgba(123,110,200,.27)}
+.sess-grid{display:grid;grid-template-columns:3fr 2fr;gap:24px;padding:28px 32px;max-width:1000px;margin:0 auto}
+.player-card{background:var(--base);border-radius:24px;padding:28px;box-shadow:14px 14px 28px var(--sd),-14px -14px 28px var(--sl)}
+.ctrl-btn{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--base)}
+.m-range{width:100%;-webkit-appearance:none;height:8px;border-radius:4px;cursor:pointer;outline:none;background:linear-gradient(to right,var(--purple) var(--p,0%),rgba(196,185,166,.5) var(--p,0%))}
+.song-item{padding:14px 16px;border-radius:16px;text-align:left;background:var(--base);box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl);font-size:14px;font-weight:700;transition:box-shadow .2s;width:100%}
+.song-item.on{box-shadow:inset 5px 5px 10px var(--sd),inset -5px -5px 10px var(--sl);color:var(--purple)}
+.q-item{padding:14px 16px;border-radius:14px;font-size:14px;line-height:1.6;background:var(--base);box-shadow:5px 5px 10px var(--sd),-5px -5px 10px var(--sl);margin-bottom:10px;cursor:pointer;transition:box-shadow .2s,color .2s}
+.q-item.done{color:var(--green);box-shadow:inset 4px 4px 8px var(--sd),inset -4px -4px 8px var(--sl)}
+.post-wrap{max-width:680px;margin:0 auto;padding:28px 32px;display:flex;flex-direction:column;gap:20px}
+.score-key{width:52px;height:52px;border-radius:16px;font-size:20px;display:flex;align-items:center;justify-content:center;background:var(--base);box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl);transition:box-shadow .15s}
+.score-key.on{box-shadow:inset 5px 5px 10px var(--sd),inset -5px -5px 10px var(--sl)}
+.big-textarea{width:100%;padding:14px 16px;border-radius:16px;font-size:14px;line-height:1.7;resize:vertical;min-height:100px;box-shadow:inset 5px 5px 10px var(--sd),inset -5px -5px 10px var(--sl)}
+.submit-btn-p{width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:50px;background:linear-gradient(135deg,var(--purple),var(--purple-dk));color:#fff;box-shadow:6px 6px 14px var(--sd),-4px -4px 10px var(--sl),0 6px 20px rgba(123,110,200,.27)}
+.submit-btn-g{width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:50px;background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff;box-shadow:6px 6px 14px var(--sd),-4px -4px 10px var(--sl),0 6px 20px rgba(74,136,112,.27)}
+.err-box{padding:10px 14px;border-radius:12px;background:var(--base);color:var(--danger);font-size:13px;font-weight:600;box-shadow:inset 3px 3px 6px var(--sd),inset -3px -3px 6px var(--sl)}
+.check-pill{padding:9px 16px;border-radius:100px;font-size:13px;font-weight:600;background:var(--base);box-shadow:5px 5px 10px var(--sd),-5px -5px 10px var(--sl);transition:box-shadow .18s,color .18s}
+.check-pill.on{box-shadow:inset 4px 4px 8px var(--sd),inset -4px -4px 8px var(--sl);color:var(--green)}
+</style>
+<audio id="m1-audio" preload="metadata"></audio>
+<header class="mod-hd">
+  <button class="mod-back raised-xs" onclick="m1Leave()">← 返回</button>
+  <div style="flex:1"><div class="mod-title">个性化聆听课</div><div class="mod-sub" id="m1-pname"></div></div>
+  <button class="end-btn" id="m1-endbtn" onclick="m1End()" style="display:none">结束课程</button>
+</header>
+<div id="m1-prep">
+  <div class="mod-wrap">
+    <div class="card"><div class="card-lbl">本次推荐曲目</div><div id="m1-songprep"></div></div>
+    <div class="card">
+      <div class="card-lbl">会话模式</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
+        <button class="mode-btn on" id="m1-ml" onclick="m1Mode('listen')">
+          <span style="font-size:22px;display:block;margin-bottom:8px">♫</span>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">纯聆听模式</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">安静陪伴，无需言语引导</div>
+        </button>
+        <button class="mode-btn" id="m1-md" onclick="m1Mode('dialogue')">
+          <span style="font-size:22px;display:block;margin-bottom:8px">◎</span>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">聆听 + 对话模式</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">预设引导问题，辅助回忆对话</div>
+        </button>
+      </div>
+      <button class="start-btn" onclick="m1Start()">开始课程 →</button>
+    </div>
+  </div>
+</div>
+<div id="m1-sess" style="display:none">
+  <div class="sess-grid">
+    <div>
+      <div class="player-card">
+        <div id="m1-vinyl" style="width:120px;height:120px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50%,#2A201A 0%,#1A110D 30%,rgba(123,110,200,.53) 31%,rgba(123,110,200,.53) 44%,#2A201A 45%,#2A201A 55%,rgba(196,185,166,.27) 56%,rgba(196,185,166,.27) 58%,#2A201A 59%);box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--base);box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl)"></div>
+        </div>
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:22px;font-weight:800" id="m1-nowtitle">—</div>
+          <div style="font-size:13px;color:var(--muted)" id="m1-nowreason"></div>
+        </div>
+        <div id="m1-aerr" style="display:none" class="err-box" style="margin-bottom:12px"></div>
+        <input class="m-range" id="m1-seek" type="range" min="0" max="100" step="0.1" value="0" oninput="m1Seek(this.value)" style="width:100%;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--light);margin-bottom:20px">
+          <span id="m1-cur">0:00</span><span id="m1-dur">--:--</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:22px;margin-bottom:20px">
+          <button class="ctrl-btn raised-xs" onclick="m1Prev()">⏮</button>
+          <button class="ctrl-btn raised-sm" id="m1-play" onclick="m1TogglePlay()" style="width:72px;height:72px;font-size:28px;background:linear-gradient(145deg,var(--purple),var(--purple-dk));color:#fff">▶</button>
+          <button class="ctrl-btn raised-xs" onclick="m1Next()">⏭</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+          <span>🔊</span>
+          <input class="m-range" id="m1-vol" type="range" min="0" max="100" value="80" oninput="m1Vol(this.value)" style="flex:1">
+          <span id="m1-volv">80%</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.07em;margin-bottom:12px">播放列表</div>
+      <div id="m1-slist" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
+      <div id="m1-qsec" style="display:none">
+        <div class="card"><div class="card-lbl">引导问题（点击标记已问）</div><div id="m1-qlist"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="m1-post" style="display:none">
+  <div class="post-wrap">
+    <div class="card"><div class="card-lbl">课程评分</div><div style="display:flex;gap:12px" id="m1-score"></div></div>
+    <div class="card">
+      <div class="card-lbl">是否触发自传体记忆</div>
+      <div style="display:flex;gap:12px">
+        <button class="mode-btn" id="m1-myes" onclick="m1Mem(true)" style="flex:1">✓ 有触发</button>
+        <button class="mode-btn on" id="m1-mno" onclick="m1Mem(false)" style="flex:1">✗ 未触发</button>
+      </div>
+    </div>
+    <div class="card"><div class="card-lbl">课程备注 / 故事片段</div><textarea class="big-textarea" id="m1-story" placeholder="记录患者的回忆片段、情绪反应…"></textarea></div>
+    <button class="submit-btn-p" onclick="m1Submit()">提交记录 ✓</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ MODULE 2 ════════════════════════════════════════════ -->
+<div id="page-m2" class="page">
+<style>
+.m2-opt{flex:1;padding:18px 12px;border-radius:18px;text-align:center;background:var(--base);box-shadow:8px 8px 16px var(--sd),-8px -8px 16px var(--sl);transition:box-shadow .2s,background .2s,color .2s}
+.m2-opt.on{box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl);background:var(--green);color:#fff}
+.m2-mood{flex:1;padding:14px 10px;border-radius:18px;text-align:center;background:var(--base);box-shadow:8px 8px 16px var(--sd),-8px -8px 16px var(--sl);font-size:14px;font-weight:700;transition:box-shadow .2s,background .2s,color .2s}
+.m2-mood.on{box-shadow:inset 6px 6px 12px var(--sd),inset -6px -6px 12px var(--sl);background:var(--green);color:#fff}
+.m2-fs{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:background 2s}
+.m2-pause{padding:12px 32px;border-radius:50px;font-size:15px;font-weight:700;color:#fff;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25)}
+.m2-mute{width:46px;height:46px;border-radius:50%;font-size:18px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;position:absolute;top:18px;right:24px}
+.m2-back-s{position:absolute;top:18px;left:24px;font-size:14px;font-weight:600;color:rgba(255,255,255,.55);background:transparent;padding:8px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.2)}
+</style>
+<audio id="m2-audio" src="memory-map/assets/music/relax_bg.mp3" loop preload="auto"></audio>
+<div id="m2-prep">
+  <header class="mod-hd">
+    <button class="mod-back raised-xs" onclick="m2Leave()">← 返回</button>
+    <div style="flex:1"><div class="mod-title">U型放松课</div><div class="mod-sub" id="m2-pname"></div></div>
+  </header>
+  <div style="max-width:780px;margin:0 auto;padding:28px 32px;display:flex;flex-direction:column;gap:22px;animation:fadeUp .4s ease both">
+    <div class="card">
+      <div class="card-lbl">✦ 建议参数</div>
+      <p style="font-size:14px;color:var(--light);margin:0" id="m2-ai-txt">根据历史记录，建议选择 20 分钟时长，适合当前患者状态。</p>
+    </div>
+    <div class="card">
+      <div class="card-lbl">课程时长</div>
+      <div style="display:flex;gap:16px" id="m2-duropts">
+        <button class="m2-opt" onclick="m2Dur(15)"><div style="font-size:32px;font-weight:800;line-height:1.1">15</div><div style="font-size:14px;font-weight:600;opacity:.8;margin-top:4px">分钟</div></button>
+        <button class="m2-opt" onclick="m2Dur(20)"><div style="font-size:32px;font-weight:800;line-height:1.1">20</div><div style="font-size:14px;font-weight:600;opacity:.8;margin-top:4px">分钟</div></button>
+        <button class="m2-opt" onclick="m2Dur(30)"><div style="font-size:32px;font-weight:800;line-height:1.1">30</div><div style="font-size:14px;font-weight:600;opacity:.8;margin-top:4px">分钟</div></button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">情绪起点评估</div>
+      <div style="display:flex;gap:16px" id="m2-moodopts">
+        <button class="m2-mood" onclick="m2Mood('平静')">🌙 平静</button>
+        <button class="m2-mood" onclick="m2Mood('有些激越')">🌊 有些激越</button>
+        <button class="m2-mood" onclick="m2Mood('明显不安')">⚡ 明显不安</button>
+      </div>
+    </div>
+    <button class="submit-btn-g" onclick="m2Start()">开始放松课程 →</button>
+  </div>
+</div>
+<div id="m2-sess" style="display:none">
+  <div class="m2-fs" id="m2-fs">
+    <button class="m2-back-s" onclick="m2LeaveConfirm()">← 返回</button>
+    <button class="m2-mute" id="m2-mute" onclick="m2Mute()">🔊</button>
+    <span style="font-size:13px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.12em;margin-bottom:16px" id="m2-pname-s"></span>
+    <span style="font-size:80px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1;margin-bottom:28px" id="m2-timer">00:00</span>
+    <div style="max-width:440px;text-align:center;font-size:15px;color:rgba(255,255,255,.75);line-height:1.75;padding:0 24px" id="m2-ptxt"></div>
+    <div style="position:absolute;bottom:80px;left:50%;transform:translateX(-50%);width:min(560px,90vw)">
+      <div style="position:relative;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px;box-shadow:4px 4px 8px var(--sd),-4px -4px 8px var(--sl)">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:50%;background:#3B6CC7"></div>
+        <div style="position:absolute;left:50%;top:0;bottom:0;width:25%;background:#1A3060"></div>
+        <div style="position:absolute;left:75%;top:0;bottom:0;width:25%;background:#D05A10"></div>
+        <div id="m2-pmask" style="position:absolute;right:0;top:0;bottom:0;background:rgba(0,0,0,.45);transition:width 1s linear"></div>
+        <div id="m2-pcur" style="position:absolute;top:-3px;bottom:-3px;width:3px;background:#fff;border-radius:2px;transition:left 1s linear"></div>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:24px;display:flex;gap:16px">
+      <button class="m2-pause" id="m2-pausebtn" onclick="m2TogglePause()">⏸ 暂停</button>
+      <button class="m2-pause" onclick="m2EndSess()">■ 结束课程</button>
+    </div>
+  </div>
+</div>
+<div id="m2-post" style="display:none">
+  <header class="mod-hd"><div style="width:60px"></div><div style="flex:1"><div class="mod-title">课程小结</div></div></header>
+  <div class="post-wrap">
+    <div class="card"><div class="card-lbl">课程评分</div><div style="display:flex;gap:12px" id="m2-score"></div></div>
+    <div class="card"><div class="card-lbl">可观察到的变化（多选）</div><div style="display:flex;flex-wrap:wrap;gap:10px" id="m2-ob"></div></div>
+    <div class="card"><div class="card-lbl">课程备注</div><textarea class="big-textarea" id="m2-notes" placeholder="记录患者状态、反应…"></textarea></div>
+    <button class="submit-btn-g" onclick="m2Submit()">提交记录 ✓</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ MODULE 3 ════════════════════════════════════════════ -->
+<div id="page-m3" class="page">
+<style>
+.m3-tile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.m3-tile{border-radius:16px;overflow:hidden;height:110px;position:relative;box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)}
+.m3-tile img{width:100%;height:100%;object-fit:cover}
+.step-dot{width:10px;height:10px;border-radius:50%;background:var(--sd);transition:background .2s,transform .2s}
+.step-dot.on{background:var(--green);transform:scale(1.3)}
+.step-btn{flex:1;padding:13px;border-radius:20px;font-size:14px;font-weight:700;box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)}
+.step-btn-p{background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff}
+</style>
+<audio id="m3-audio" preload="metadata"></audio>
+<header class="mod-hd">
+  <button class="mod-back raised-xs" onclick="m3Leave()">← 返回</button>
+  <div style="flex:1"><div class="mod-title">文化主题节气活动课</div><div class="mod-sub" id="m3-pname"></div></div>
+  <button class="end-btn" id="m3-endbtn" onclick="m3End()" style="display:none">结束课程</button>
+</header>
+<div id="m3-prep">
+  <div style="max-width:780px;margin:0 auto;padding:28px 32px">
+    <div id="m3-banner" class="card" style="text-align:center;background:linear-gradient(135deg,#8DC4A8,#C5BCEE);color:#fff;font-size:24px;font-weight:800;padding:32px">🌸 谷雨 · 节气主题活动课</div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-lbl">活动模式</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
+        <button class="mode-btn on" id="m3-mstd" onclick="m3Mode('standard')">
+          <span style="font-size:22px;display:block;margin-bottom:8px">🌸</span>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">标准模式</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">图像 + 音乐 + 引导问题</div>
+        </button>
+        <button class="mode-btn" id="m3-mmus" onclick="m3Mode('music_only')">
+          <span style="font-size:22px;display:block;margin-bottom:8px">♪</span>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">纯音乐模式</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">仅音乐欣赏，无引导</div>
+        </button>
+      </div>
+      <button class="submit-btn-g" onclick="m3Start()">开始活动课 →</button>
+    </div>
+  </div>
+</div>
+<div id="m3-sess" style="display:none">
+  <div style="display:grid;grid-template-columns:3fr 2fr;gap:24px;padding:28px 32px;max-width:1000px;margin:0 auto">
+    <div>
+      <div class="card">
+        <div class="card-lbl" id="m3-steplbl">第 1 步 · 图像欣赏</div>
+        <div style="display:flex;gap:8px;margin-bottom:20px" id="m3-stepnav"></div>
+        <div id="m3-stepcontent"></div>
+        <div style="display:flex;gap:12px;margin-top:16px" id="m3-stepbtns"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-lbl">播放列表</div>
+        <div id="m3-slist" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="ctrl-btn raised-xs" onclick="m3TogglePlay()" id="m3-play" style="width:44px;height:44px;font-size:20px">▶</button>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700" id="m3-nowtitle">—</div><div id="m3-aerr" style="display:none;font-size:12px;color:var(--danger)"></div></div>
+        </div>
+        <input class="m-range" id="m3-vol" type="range" min="0" max="100" value="80" oninput="m3Vol(this.value)" style="width:100%;margin-top:12px">
+      </div>
+      <div id="m3-qpanel" style="display:none">
+        <div class="card"><div class="card-lbl">引导问题（点击标记已问）</div><div id="m3-qlist"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="m3-post" style="display:none">
+  <div class="post-wrap">
+    <div class="card"><div class="card-lbl">课程评分</div><div style="display:flex;gap:12px" id="m3-score"></div></div>
+    <div class="card"><div class="card-lbl">可观察到的变化（多选）</div><div style="display:flex;flex-wrap:wrap;gap:10px" id="m3-ob"></div></div>
+    <div class="card"><div class="card-lbl">课程备注</div><textarea class="big-textarea" id="m3-notes" placeholder="记录患者状态、对节气内容的反应…"></textarea></div>
+    <button class="submit-btn-g" onclick="m3Submit()">提交记录 ✓</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ DIALOG ═════════════════════════════════════════════ -->
+<div id="overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;align-items:center;justify-content:center">
+  <div style="background:var(--base);border-radius:28px;padding:36px 32px;max-width:380px;width:90%;box-shadow:20px 20px 40px var(--sd),-20px -20px 40px var(--sl);text-align:center">
+    <div style="font-size:28px;margin-bottom:12px" id="dlg-icon">⚠</div>
+    <p style="font-size:15px;line-height:1.7;margin-bottom:24px" id="dlg-txt"></p>
+    <div style="display:flex;gap:12px;justify-content:center" id="dlg-btns"></div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════ -->
+<div id="toast" style="display:none;position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#2C2420;color:#fff;padding:12px 24px;border-radius:50px;font-size:14px;font-weight:700;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.25)"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  HARDCODED DATA
+// ══════════════════════════════════════════════════════════
+const TEACHER = { name: '王老师' };
+
+const PATIENTS = [
+  {
+    id: 1, name: '李奶奶',
+    birth_year: 1942, hometown_province: '广东省',
+    hometown_city_type: '农村', occupation_type: '农民',
+    music_preference_tags: ['粤曲', '民歌', '革命歌曲'],
+  },
+  {
+    id: 2, name: '张爷爷',
+    birth_year: 1938, hometown_province: '湖南省',
+    hometown_city_type: '城镇', occupation_type: '工人',
+    music_preference_tags: ['湖南民歌', '红色经典'],
+  },
+];
+
+const SONGS_BY_PATIENT = {
+  1: [
+    { id:1, title:'茉莉花',       reason:'旋律舒缓，适合农村背景患者' },
+    { id:4, title:'红梅赞',       reason:'激发积极情绪' },
+    { id:5, title:'浏阳河',       reason:'南方民歌，易唤起乡土记忆' },
+  ],
+  2: [
+    { id:2, title:'南泥湾',       reason:'革命年代记忆，适合工人背景' },
+    { id:3, title:'月亮代表我的心', reason:'旋律熟悉，情感共鸣强' },
+    { id:5, title:'浏阳河',       reason:'湖南民歌，激活地域记忆' },
+  ],
+};
+
+const QUESTIONS_BY_PATIENT = {
+  1: [
+    '在广东，农忙时节您们会唱什么歌吗？',
+    '您小时候听这首歌是在什么场合？',
+    '这首歌让您想起了哪些人或事？',
+    '您年轻时最喜欢在什么时候唱歌？',
+  ],
+  2: [
+    '您在工厂里有没有一起唱歌的记忆？',
+    '这首歌让您想起了哪个年代？',
+    '您记得第一次听这首歌是什么时候？',
+    '这首歌有没有让您想起某个特别的人？',
+  ],
+};
+
+const M3_QUESTIONS = [
+  '您小时候最喜欢在春天做什么活动？',
+  '您记得家乡春天的田野是什么样子吗？',
+  '您有没有和家人一起踏青或去田里劳作的记忆？',
+  '春天有什么食物是您最喜欢或最怀念的？',
+  '您记得清明或谷雨时节家里有哪些习俗？',
+];
+
+const SOLAR_TERM = { name:'谷雨', desc:'二十四节气·春季第六个节气' };
+
+const AUDIO_MAP = {
+  '茉莉花':        'memory-map/assets/music/molihua.mp3',
+  '浏阳河':        'memory-map/assets/music/liuyanghe.mp3',
+  '南泥湾':        'memory-map/assets/music/nanniwan.mp3',
+  '月亮代表我的心': 'memory-map/assets/music/yueliang.mp3',
+  '红梅赞':        'memory-map/assets/music/hongmeizan.mp3',
+};
+
+const OB_OPTS = ['呼吸变缓','身体放松','闭目休息','入睡','无明显变化','出现不适或抗拒'];
+const EMOJIS  = ['😔','😐','🙂','😊','🌟'];
+
+const TILE_IMGS = [
+  'https://images.pexels.com/photos/1105001/pexels-photo-1105001.jpeg?auto=compress&cs=tinysrgb&w=400',
+  'https://images.pexels.com/photos/1597481/pexels-photo-1597481.jpeg?auto=compress&cs=tinysrgb&w=400',
+  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400',
+  'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400',
+  'https://images.pexels.com/photos/164821/pexels-photo-164821.jpeg?auto=compress&cs=tinysrgb&w=400',
+  'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400',
+];
+const TILE_CLR = ['#C5BCEE','#8DC4A8','#F5C6A0','#A8C4D4','#E8C4A0','#B0C4A8'];
+
+const MODULE_CFG = [
+  { type:'listening_dialogue', label:'个性化聆听课',      desc:'以音乐激活自传体记忆，可选引导对话', icon:'🎧', color:'#7B6EC8', anim:'breathe-p', page:'m1' },
+  { type:'relaxation',         label:'U型放松课',          desc:'渐降 → 深度休息 → 复苏的音乐放松疗程', icon:'🌙', color:'#5B8BAD', anim:'breathe-b', page:'m2' },
+  { type:'cultural_theme',     label:'文化主题节气活动课', desc:'节气音乐与图像激活文化长期记忆', icon:'🌸', color:'#4A8870', anim:'breathe-g', page:'m3' },
+];
+
+// ══════════════════════════════════════════════════════════
+//  SESSION STORE (localStorage)
+// ══════════════════════════════════════════════════════════
+function getSessions() {
+  try { return JSON.parse(localStorage.getItem('mt_sessions') || '[]'); } catch { return []; }
+}
+function saveSessions(arr) {
+  localStorage.setItem('mt_sessions', JSON.stringify(arr));
+}
+function addSession(s) {
+  const arr = getSessions();
+  s.id = Date.now();
+  arr.push(s);
+  saveSessions(arr);
+}
+function getPatientSessions(pid) {
+  return getSessions().filter(s => s.patientId === pid);
+}
+
+// ══════════════════════════════════════════════════════════
+//  APP STATE
+// ══════════════════════════════════════════════════════════
+let CUR_PID = PATIENTS[0].id;
+function getPatient(id) { return PATIENTS.find(p => p.id === (id||CUR_PID)); }
+
+// ══════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  const el = document.getElementById('page-' + id);
+  if (el) el.style.display = 'block';
+}
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '--:--';
+  return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2200);
+}
+function dialog(txt, btns, icon='⚠') {
+  document.getElementById('dlg-txt').textContent = txt;
+  document.getElementById('dlg-icon').textContent = icon;
+  const bc = document.getElementById('dlg-btns'); bc.innerHTML = '';
+  btns.forEach(b => {
+    const el = document.createElement('button');
+    el.textContent = b.label;
+    el.style.cssText = 'padding:12px 24px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:none;' +
+      (b.danger ? 'background:var(--danger);color:#fff;box-shadow:0 4px 14px rgba(192,57,43,.3)' :
+       'background:var(--base);box-shadow:6px 6px 12px var(--sd),-6px -6px 12px var(--sl)');
+    el.onclick = () => { document.getElementById('overlay').style.display = 'none'; b.fn(); };
+    bc.appendChild(el);
+  });
+  document.getElementById('overlay').style.display = 'flex';
+}
+
+function buildScore(cid, key) {
+  const row = document.getElementById(cid); row.innerHTML = '';
+  window[key] = 0;
+  for (let i=1;i<=5;i++) {
+    const b = document.createElement('button');
+    b.className = 'score-key raised-xs'; b.textContent = EMOJIS[i-1];
+    b.onclick = () => {
+      window[key] = i;
+      row.querySelectorAll('.score-key').forEach((x,j) => {
+        x.classList.toggle('on', j < i);
+        x.style.boxShadow = j < i ? 'inset 5px 5px 10px var(--sd),inset -5px -5px 10px var(--sl)' : '6px 6px 12px var(--sd),-6px -6px 12px var(--sl)';
+      });
+    };
+    row.appendChild(b);
+  }
+}
+
+function buildOb(cid, key) {
+  const g = document.getElementById(cid); g.innerHTML = ''; window[key] = [];
+  OB_OPTS.forEach(lbl => {
+    const b = document.createElement('button');
+    b.className = 'check-pill'; b.textContent = lbl;
+    b.onclick = () => {
+      const a = window[key];
+      if (a.includes(lbl)) { window[key] = a.filter(x=>x!==lbl); b.classList.remove('on'); }
+      else { window[key] = [...a, lbl]; b.classList.add('on'); }
+    };
+    g.appendChild(b);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════
+function greet() {
+  const h = new Date().getHours();
+  if (h<6) return '深夜了，注意休息'; if (h<12) return '早上好';
+  if (h<14) return '午安'; if (h<18) return '下午好'; return '晚上好';
+}
+
+function loadDash() {
+  show('dash');
+  document.getElementById('d-greet').textContent = TEACHER.name + '，' + greet() + ' ☀️';
+  const now = new Date();
+  document.getElementById('d-date').textContent = '音乐疗愈记录平台 · ' +
+    now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+  const sel = document.getElementById('d-sel');
+  sel.innerHTML = PATIENTS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  sel.value = CUR_PID;
+  renderPCard(); renderMods();
+}
+
+function onPatient(id) { CUR_PID = Number(id); renderPCard(); renderMods(); }
+
+const TAG_CLR = ['#7B6EC8','#4A8870','#5B8BAD','#B5763A'];
+function renderPCard() {
+  const p = getPatient();
+  const sess = getPatientSessions(p.id);
+  const tags = [p.birth_year+'年生', p.hometown_province, p.hometown_city_type, p.occupation_type];
+  const pillsHtml = tags.map((t,i)=>`<span class="pill" style="color:${TAG_CLR[i]}">${t}</span>`).join('');
+  const prefHtml = (p.music_preference_tags||[]).map(t=>`<span class="pill" style="color:var(--green)">${t}</span>`).join('');
+
+  // recommendation logic
+  const typeCounts = {};
+  MODULE_CFG.forEach(m => typeCounts[m.type] = 0);
+  sess.forEach(s => { if (typeCounts[s.moduleType]!==undefined) typeCounts[s.moduleType]++; });
+  const recType = Object.entries(typeCounts).sort((a,b)=>a[1]-b[1])[0]?.[0];
+  const recLabel = MODULE_CFG.find(m=>m.type===recType)?.label || '个性化聆听课';
+  const recHtml = sess.length === 0
+    ? `<p style="font-size:13px;color:#B0A898;font-style:italic">暂无历史记录，请选择任意模块开始第一次课程 🌱</p>`
+    : `<div style="display:flex;flex-direction:column;gap:10px">
+        <div class="rec-chip">✨ 建议今日开展：${recLabel}</div>
+        <p style="font-size:13px;color:#7A6F68;line-height:1.75;margin:0">已完成 ${sess.length} 次课程，根据开展频率推荐今日优先进行${recLabel}。</p>
+       </div>`;
+
+  document.getElementById('d-pcard').innerHTML = `<div class="p-card">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="p-avatar">${p.name.slice(-1)}</div>
+      <div><div style="font-size:30px;font-weight:800;color:#2C2420;line-height:1.15">${p.name}</div>
+        <div style="font-size:12px;color:#B0A898;margin-top:3px;font-weight:500">参与音乐疗愈课程</div></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${pillsHtml}</div>
+    ${prefHtml ? `<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:12px;color:#A89E96;font-weight:600">♪ 音乐偏好</span><div style="display:flex;flex-wrap:wrap;gap:7px">${prefHtml}</div></div>` : ''}
+    <div class="divider"></div>
+    ${recHtml}
+  </div>`;
+}
+
+function renderMods() {
+  const sess = getPatientSessions(CUR_PID);
+  const typeCounts = {};
+  MODULE_CFG.forEach(m => typeCounts[m.type] = 0);
+  sess.forEach(s => { if (typeCounts[s.moduleType]!==undefined) typeCounts[s.moduleType]++; });
+  const recType = Object.entries(typeCounts).sort((a,b)=>a[1]-b[1])[0]?.[0];
+
+  document.getElementById('d-mods').innerHTML = MODULE_CFG.map(mod => {
+    const modSess = sess.filter(s=>s.moduleType===mod.type);
+    const last = modSess[modSess.length-1];
+    const isRec = mod.type === recType;
+    const dateStr = last ? '📅 上次：' + new Date(last.startedAt).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}).replace('/', '月')+'日' : '尚未开展';
+    const score = last?.engagementScore || 0;
+    const dotsHtml = score>0 ? `<span style="display:flex;gap:5px;align-items:center">${[1,2,3,4,5].map(i=>`<span class="score-dot" style="background:${i<=score?mod.color:'rgba(196,185,166,.53)'}${i<=score?';box-shadow:0 0 5px '+mod.color+'88':''}"></span>`).join('')}</span>` : '';
+    return `<button class="mod-btn" onclick="goMod('${mod.page}')"
+      style="background:var(--base)${isRec?';animation:'+mod.anim+' 2.8s ease-in-out infinite':''}">
+      ${isRec?`<span class="rec-badge" style="background:${mod.color}">✦ 今日推荐</span>`:''}
+      <div style="display:flex;align-items:flex-start;gap:16px">
+        <div class="mod-icon-btn"><span style="font-size:22px">${mod.icon}</span></div>
+        <div style="flex:1;padding-top:3px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:5px;color:${isRec?mod.color:'#3A342F'}">${mod.label}</div>
+          <div style="font-size:13px;color:#A89E96;line-height:1.55">${mod.desc}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="font-size:12px;color:#B0A898;font-weight:500">${dateStr}</span>${dotsHtml}
+      </div>
+    </button>`;
+  }).join('');
+}
+
+function goMod(p) {
+  const pt = getPatient();
+  if (p==='m1') initM1(pt);
+  else if (p==='m2') initM2(pt);
+  else if (p==='m3') initM3(pt);
+}
+
+// ══════════════════════════════════════════════════════════
+//  MODULE 1
+// ══════════════════════════════════════════════════════════
+let M1 = {};
+
+function initM1(pt) {
+  M1 = { pt, mode:'listen', songs:[], questions:[], idx:0, playing:false,
+         mem:false, startTime:null };
+  document.getElementById('m1-pname').textContent = pt.name;
+  document.getElementById('m1-endbtn').style.display = 'none';
+  document.getElementById('m1-prep').style.display = 'block';
+  document.getElementById('m1-sess').style.display = 'none';
+  document.getElementById('m1-post').style.display = 'none';
+
+  const songs = SONGS_BY_PATIENT[pt.id] || SONGS_BY_PATIENT[1];
+  const sess = getPatientSessions(pt.id).filter(s=>s.moduleType==='listening_dialogue');
+  const lastNote = sess[sess.length-1]?.notes || '';
+
+  document.getElementById('m1-songprep').innerHTML = songs.map((s,i)=>`
+    <div class="song-row">
+      <div style="width:28px;height:28px;border-radius:10px;background:var(--base);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--muted);flex-shrink:0;box-shadow:4px 4px 8px var(--sd),-4px -4px 8px var(--sl)">${i+1}</div>
+      <div style="flex:1"><div style="font-size:15px;font-weight:700">《${s.title}》</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${s.reason}</div></div>
+      <div style="font-size:16px;color:var(--light)">♪</div>
+    </div>`).join('') +
+    (lastNote ? `<div style="margin-top:16px"><div class="card-lbl">上次备注</div><div style="font-size:13px;color:var(--muted);padding:12px;border-radius:12px;box-shadow:inset 4px 4px 8px var(--sd),inset -4px -4px 8px var(--sl)">${lastNote}</div></div>` : '');
+
+  show('m1');
+}
+
+function m1Mode(m) {
+  M1.mode = m;
+  document.getElementById('m1-ml').classList.toggle('on', m==='listen');
+  document.getElementById('m1-md').classList.toggle('on', m==='dialogue');
+}
+
+function m1Start() {
+  const pt = M1.pt;
+  M1.songs = SONGS_BY_PATIENT[pt.id] || SONGS_BY_PATIENT[1];
+  M1.questions = M1.mode==='dialogue' ? (QUESTIONS_BY_PATIENT[pt.id] || QUESTIONS_BY_PATIENT[1]) : [];
+  M1.idx = 0; M1.startTime = new Date();
+
+  document.getElementById('m1-prep').style.display = 'none';
+  document.getElementById('m1-sess').style.display = 'block';
+  document.getElementById('m1-endbtn').style.display = 'inline-flex';
+
+  document.getElementById('m1-slist').innerHTML = M1.songs.map((s,i)=>
+    `<button class="song-item${i===0?' on':''}" onclick="m1Load(${i})">♪ 《${s.title}》</button>`
+  ).join('');
+
+  if (M1.questions.length) {
+    document.getElementById('m1-qsec').style.display = 'block';
+    document.getElementById('m1-qlist').innerHTML = M1.questions.map((q,i)=>
+      `<div class="q-item" id="m1q${i}" onclick="document.getElementById('m1q${i}').classList.toggle('done')">${q}</div>`
+    ).join('');
+  } else {
+    document.getElementById('m1-qsec').style.display = 'none';
+  }
+  m1Load(0);
+}
+
+function m1Load(idx) {
+  M1.idx = idx;
+  const s = M1.songs[idx]; if (!s) return;
+  const audio = document.getElementById('m1-audio');
+  audio.src = AUDIO_MAP[s.title] || ''; audio.currentTime = 0; audio.load();
+  document.getElementById('m1-nowtitle').textContent = '《'+s.title+'》';
+  document.getElementById('m1-nowreason').textContent = s.reason||'';
+  document.getElementById('m1-aerr').style.display = 'none';
+  document.querySelectorAll('.song-item').forEach((el,i) => el.classList.toggle('on', i===idx));
+  if (M1.playing) audio.play().catch(()=>{});
+}
+
+function m1TogglePlay() {
+  const a = document.getElementById('m1-audio');
+  const btn = document.getElementById('m1-play');
+  const vinyl = document.getElementById('m1-vinyl');
+  if (M1.playing) {
+    a.pause(); M1.playing = false;
+    btn.textContent = '▶'; btn.style.background='linear-gradient(145deg,var(--purple),var(--purple-dk))'; btn.style.color='#fff'; btn.style.boxShadow='12px 12px 24px var(--sd),-12px -12px 24px var(--sl)';
+    vinyl.style.animation = 'none';
+  } else {
+    a.play().then(()=>{
+      M1.playing = true;
+      btn.textContent='⏸'; btn.style.background='var(--base)'; btn.style.color='var(--purple)'; btn.style.boxShadow='inset 8px 8px 16px var(--sd),inset -8px -8px 16px var(--sl)';
+      vinyl.style.animation = 'spin 5s linear infinite';
+    }).catch(e=>{
+      const err=document.getElementById('m1-aerr'); err.textContent='音频加载失败（'+e.message+'）'; err.style.display='block';
+    });
+  }
+}
+function m1Prev() { if (M1.idx>0) m1Load(M1.idx-1); }
+function m1Next() { if (M1.idx<M1.songs.length-1) m1Load(M1.idx+1); }
+function m1Seek(v) { const a=document.getElementById('m1-audio'); if(a.duration) a.currentTime=a.duration*v/100; }
+function m1Vol(v) { document.getElementById('m1-audio').volume=v/100; document.getElementById('m1-volv').textContent=v+'%'; }
+function m1Mem(v) {
+  M1.mem=v;
+  document.getElementById('m1-myes').classList.toggle('on',v);
+  document.getElementById('m1-mno').classList.toggle('on',!v);
+}
+function m1End() {
+  document.getElementById('m1-audio').pause(); M1.playing=false;
+  document.getElementById('m1-sess').style.display='none';
+  document.getElementById('m1-post').style.display='block';
+  document.getElementById('m1-endbtn').style.display='none';
+  buildScore('m1-score','_m1s');
+}
+function m1Submit() {
+  const story = document.getElementById('m1-story').value;
+  addSession({ patientId:M1.pt.id, moduleType:'listening_dialogue',
+    startedAt:M1.startTime, endedAt:new Date(),
+    engagementScore:window._m1s||1, notes:story,
+    memoryTriggered:M1.mem });
+  toast('✓ 课程记录已保存');
+  loadDash();
+}
+function m1Leave() {
+  if (document.getElementById('m1-sess').style.display!=='none') {
+    dialog('课程记录尚未提交，确认离开？',[
+      {label:'继续上课',fn:()=>{}},
+      {label:'确认离开',danger:true,fn:()=>{ document.getElementById('m1-audio').pause(); loadDash(); }},
+    ]);
+  } else loadDash();
+}
+
+const _m1a = document.getElementById('m1-audio');
+_m1a.addEventListener('timeupdate',()=>{ if(_m1a.duration){ document.getElementById('m1-seek').value=(_m1a.currentTime/_m1a.duration)*100; document.getElementById('m1-cur').textContent=fmtTime(_m1a.currentTime); } });
+_m1a.addEventListener('loadedmetadata',()=>{ document.getElementById('m1-dur').textContent=fmtTime(_m1a.duration); });
+_m1a.addEventListener('ended',()=>{
+  M1.playing=false;
+  const btn=document.getElementById('m1-play'); btn.textContent='▶'; btn.style.background='linear-gradient(145deg,var(--purple),var(--purple-dk))'; btn.style.color='#fff';
+  document.getElementById('m1-vinyl').style.animation='none';
+});
+_m1a.addEventListener('error',()=>{ const e=document.getElementById('m1-aerr'); e.textContent='音频文件无法播放'; e.style.display='block'; M1.playing=false; });
+
+// ══════════════════════════════════════════════════════════
+//  MODULE 2
+// ══════════════════════════════════════════════════════════
+let M2={}, _m2t=null, _m2ft=null;
+const M2PH=[
+  {name:'渐降阶段',bg:'#1B3A6B',txt:'保持安静陪伴，可配合患者呼吸做轻柔的节奏引导'},
+  {name:'深度休息',bg:'#0D1B3E',txt:'保持沉默，观察患者状态，无需言语干预'},
+  {name:'复苏唤醒',bg:'#7C2D00',txt:'可轻声呼唤患者姓名，使用肯定性语言协助其回到当下'},
+];
+
+function initM2(pt) {
+  M2={pt,dur:null,mood:null,elapsed:0,running:false,startTime:null,muted:false,vol:0};
+  document.getElementById('m2-pname').textContent=pt.name;
+  document.getElementById('m2-prep').style.display='block';
+  document.getElementById('m2-sess').style.display='none';
+  document.getElementById('m2-post').style.display='none';
+  document.querySelectorAll('#m2-duropts .m2-opt').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#m2-moodopts .m2-mood').forEach(b=>b.classList.remove('on'));
+  buildScore('m2-score','_m2s'); buildOb('m2-ob','_m2ob');
+  show('m2');
+}
+
+function m2Dur(d) {
+  M2.dur=d;
+  document.querySelectorAll('#m2-duropts .m2-opt').forEach(b=>b.classList.toggle('on',b.textContent.includes(d)));
+}
+function m2Mood(m) {
+  M2.mood=m;
+  document.querySelectorAll('#m2-moodopts .m2-mood').forEach(b=>b.classList.toggle('on',b.textContent.includes(m)));
+}
+function m2Start() {
+  if (!M2.dur) { toast('请选择课程时长'); return; }
+  if (!M2.mood) { toast('请选择情绪起点'); return; }
+  M2.elapsed=0; M2.running=true; M2.startTime=new Date();
+  document.getElementById('m2-prep').style.display='none';
+  document.getElementById('m2-sess').style.display='block';
+  m2Upd(); _m2t=setInterval(m2Tick,1000); m2FadeIn();
+}
+function m2Tick() {
+  if (!M2.running) return;
+  M2.elapsed++;
+  const tot=M2.dur*60;
+  if (M2.elapsed>=tot) { clearInterval(_m2t); M2.running=false; m2FadeOut(()=>m2ShowPost()); return; }
+  m2Upd();
+}
+function m2Upd() {
+  const tot=M2.dur*60, rem=Math.max(0,tot-M2.elapsed), pct=Math.min(100,M2.elapsed/tot*100);
+  document.getElementById('m2-timer').textContent=String(Math.floor(rem/60)).padStart(2,'0')+':'+String(Math.floor(rem%60)).padStart(2,'0');
+  const pi=M2.elapsed<tot*.5?0:M2.elapsed<tot*.75?1:2;
+  document.getElementById('m2-pname-s').textContent=M2PH[pi].name;
+  document.getElementById('m2-ptxt').textContent=M2PH[pi].txt;
+  document.getElementById('m2-fs').style.background=M2PH[pi].bg;
+  document.getElementById('m2-pmask').style.width=(100-pct)+'%';
+  document.getElementById('m2-pcur').style.left=pct+'%';
+}
+function m2FadeIn() {
+  const a=document.getElementById('m2-audio'); clearInterval(_m2ft);
+  a.volume=0; M2.vol=0; a.play().catch(()=>{});
+  let s=0; _m2ft=setInterval(()=>{ s++; M2.vol=Math.min(.5,s*(.5/50)); if(!M2.muted) a.volume=M2.vol; if(s>=50) clearInterval(_m2ft); },100);
+}
+function m2FadeOut(cb) {
+  const a=document.getElementById('m2-audio'); clearInterval(_m2ft);
+  let v=a.volume; const st=v/20;
+  _m2ft=setInterval(()=>{ v=Math.max(0,v-st); a.volume=v; if(v<=0){ clearInterval(_m2ft); a.pause(); cb?.(); } },100);
+}
+function m2TogglePause() {
+  M2.running=!M2.running;
+  document.getElementById('m2-pausebtn').textContent=M2.running?'⏸ 暂停':'▶ 继续';
+  if (M2.running) { _m2t=setInterval(m2Tick,1000); }
+}
+function m2Mute() {
+  M2.muted=!M2.muted; const a=document.getElementById('m2-audio');
+  a.volume=M2.muted?0:M2.vol; document.getElementById('m2-mute').textContent=M2.muted?'🔇':'🔊';
+}
+function m2EndSess() { clearInterval(_m2t); M2.running=false; m2FadeOut(()=>m2ShowPost()); }
+function m2ShowPost() { document.getElementById('m2-sess').style.display='none'; document.getElementById('m2-post').style.display='block'; }
+function m2Submit() {
+  addSession({ patientId:M2.pt.id, moduleType:'relaxation',
+    startedAt:M2.startTime, endedAt:new Date(),
+    engagementScore:window._m2s||1, moodBaseline:M2.mood,
+    plannedDurationMin:M2.dur, observableChanges:window._m2ob||[],
+    notes:document.getElementById('m2-notes').value });
+  toast('✓ 课程记录已保存'); loadDash();
+}
+function m2LeaveConfirm() {
+  dialog('课程记录尚未提交，确认离开？',[
+    {label:'继续',fn:()=>{}},
+    {label:'确认离开',danger:true,fn:()=>{ clearInterval(_m2t); document.getElementById('m2-audio').pause(); loadDash(); }},
+  ]);
+}
+function m2Leave() { clearInterval(_m2t); document.getElementById('m2-audio').pause(); loadDash(); }
+
+// ══════════════════════════════════════════════════════════
+//  MODULE 3
+// ══════════════════════════════════════════════════════════
+let M3={};
+
+function initM3(pt) {
+  M3={pt,mode:'standard',songs:[],questions:[],idx:0,playing:false,step:1,startTime:null};
+  document.getElementById('m3-pname').textContent=pt.name;
+  document.getElementById('m3-endbtn').style.display='none';
+  document.getElementById('m3-prep').style.display='block';
+  document.getElementById('m3-sess').style.display='none';
+  document.getElementById('m3-post').style.display='none';
+  document.getElementById('m3-mstd').classList.add('on');
+  document.getElementById('m3-mmus').classList.remove('on');
+  buildScore('m3-score','_m3s'); buildOb('m3-ob','_m3ob');
+  show('m3');
+}
+function m3Mode(m) {
+  M3.mode=m;
+  document.getElementById('m3-mstd').classList.toggle('on',m==='standard');
+  document.getElementById('m3-mmus').classList.toggle('on',m==='music_only');
+}
+function m3Start() {
+  const pt=M3.pt;
+  M3.songs=SONGS_BY_PATIENT[pt.id]||SONGS_BY_PATIENT[1];
+  M3.questions=M3.mode==='standard'?M3_QUESTIONS:[];
+  M3.step=1; M3.startTime=new Date();
+
+  document.getElementById('m3-prep').style.display='none';
+  document.getElementById('m3-sess').style.display='block';
+  document.getElementById('m3-endbtn').style.display='inline-flex';
+
+  document.getElementById('m3-slist').innerHTML=M3.songs.map((s,i)=>
+    `<button class="song-item${i===0?' on':''}" style="width:100%" onclick="m3Load(${i})">♪ 《${s.title}》</button>`
+  ).join('');
+  m3Load(0); m3BuildNav(); m3RenderStep();
+}
+function m3BuildNav() {
+  const steps=M3.mode==='music_only'?2:3;
+  document.getElementById('m3-stepnav').innerHTML=Array.from({length:steps},(_,i)=>
+    `<div class="step-dot${i===0?' on':''}" id="m3d${i+1}"></div>`
+  ).join('');
+}
+function m3RenderStep() {
+  const steps=M3.mode==='music_only'?2:3;
+  for(let i=1;i<=3;i++){const d=document.getElementById('m3d'+i);if(d)d.classList.toggle('on',i===M3.step);}
+  const lbl=document.getElementById('m3-steplbl');
+  const cont=document.getElementById('m3-stepcontent');
+  const btns=document.getElementById('m3-stepbtns');
+  const qp=document.getElementById('m3-qpanel');
+  if(M3.step===1){
+    lbl.textContent='第 1 步 · 图像欣赏';
+    cont.innerHTML=`<div class="m3-tile-grid">${TILE_IMGS.map((u,i)=>`<div class="m3-tile" style="background:${TILE_CLR[i]}"><img src="${u}" onerror="this.style.display='none'"></div>`).join('')}</div><p style="font-size:13px;color:var(--muted);line-height:1.7">展示节气相关图片，引导患者欣赏并分享感受。<br>可以问：这些图片让您想起了什么？</p>`;
+    qp.style.display='none';
+  } else if(M3.step===2){
+    lbl.textContent='第 2 步 · 音乐聆听';
+    cont.innerHTML=`<p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px">播放节气主题音乐，引导患者跟随律动或轻声哼唱。<br>本次曲目：${M3.songs.map(s=>'《'+s.title+'》').join('、')}</p>`;
+    qp.style.display='none';
+  } else if(M3.step===3){
+    lbl.textContent='第 3 步 · 引导对话';
+    cont.innerHTML='<p style="font-size:13px;color:var(--muted);margin-bottom:10px">点击问题标记已使用：</p>';
+    qp.style.display='block';
+    document.getElementById('m3-qlist').innerHTML=M3.questions.map((q,i)=>
+      `<div class="q-item" id="m3q${i}" onclick="document.getElementById('m3q${i}').classList.toggle('done')">${q}</div>`
+    ).join('');
+  }
+  const isLast=M3.step>=steps;
+  btns.innerHTML=(M3.step>1?`<button class="step-btn raised-xs" onclick="m3Prev()">← 上一步</button>`:'') +
+    (isLast?`<button class="step-btn step-btn-p" onclick="m3End()">结束课程 →</button>`:`<button class="step-btn step-btn-p" onclick="m3Next()">下一步 →</button>`);
+}
+function m3Next(){const s=M3.mode==='music_only'?2:3;if(M3.step<s){M3.step++;m3RenderStep();}}
+function m3Prev(){if(M3.step>1){M3.step--;m3RenderStep();}}
+function m3Load(idx){
+  M3.idx=idx; const s=M3.songs[idx]; if(!s) return;
+  const a=document.getElementById('m3-audio');
+  a.src=AUDIO_MAP[s.title]||''; a.currentTime=0; a.load();
+  document.getElementById('m3-nowtitle').textContent='《'+s.title+'》';
+  document.getElementById('m3-aerr').style.display='none';
+  document.querySelectorAll('#m3-slist .song-item').forEach((el,i)=>el.classList.toggle('on',i===idx));
+  if(M3.playing) a.play().catch(()=>{});
+}
+function m3TogglePlay(){
+  const a=document.getElementById('m3-audio'),btn=document.getElementById('m3-play');
+  if(M3.playing){a.pause();M3.playing=false;btn.textContent='▶';}
+  else a.play().then(()=>{M3.playing=true;btn.textContent='⏸';}).catch(e=>{document.getElementById('m3-aerr').textContent='播放失败';document.getElementById('m3-aerr').style.display='block';});
+}
+function m3Vol(v){document.getElementById('m3-audio').volume=v/100;}
+function m3End(){
+  document.getElementById('m3-audio').pause(); M3.playing=false;
+  document.getElementById('m3-sess').style.display='none';
+  document.getElementById('m3-post').style.display='block';
+  document.getElementById('m3-endbtn').style.display='none';
+}
+function m3Submit(){
+  addSession({patientId:M3.pt.id,moduleType:'cultural_theme',
+    startedAt:M3.startTime,endedAt:new Date(),
+    engagementScore:window._m3s||1,observableChanges:window._m3ob||[],
+    notes:document.getElementById('m3-notes').value});
+  toast('✓ 课程记录已保存'); loadDash();
+}
+function m3Leave(){
+  if(document.getElementById('m3-sess').style.display!=='none'){
+    dialog('课程记录尚未提交，确认离开？',[
+      {label:'继续',fn:()=>{}},
+      {label:'确认离开',danger:true,fn:()=>{document.getElementById('m3-audio').pause();loadDash();}},
+    ]);
+  } else loadDash();
+}
+
+// ══════════════════════════════════════════════════════════
+//  START
+// ══════════════════════════════════════════════════════════
+loadDash();
+</script>
+</body>
+</html>
